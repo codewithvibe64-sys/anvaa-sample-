@@ -1,0 +1,495 @@
+{
+  "users": [
+    {
+      "id": "user_01",
+      "email": "codewithvibe64@gmail.com",
+      "name": "Vasantika Sen",
+      "role": "admin",
+      "phone": "+91 98765 43210",
+      "savedAddresses": [
+        {
+          "id": "addr_01",
+          "name": "Vasantika Sen",
+          "street": "Flat 402, Royal Residency, Juhu Tara Road",
+          "city": "Mumbai",
+          "state": "Maharashtra",
+          "pincode": "400049",
+          "phone": "+91 98765 43210"
+        }
+      ],
+      "createdAt": "2026-06-17T10:49:31.099Z"
+    }
+  ],
+  "designers": [
+    {
+      "id": "aditi_deshmukh",
+      "name": "Aditi Deshmukh",
+      "city": "Mumbai",
+      "specialty": "Royal Banarasi & Bridal Couture",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400",
+      "coverImage": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800",
+      "bio": "Aditi Deshmukh celebrates the pristine beauty of Banarasi weave. Based in Mumbai, she is a revivalist of handloom heritages, transforming ancient Indian artistry into highly contemporary, dramatic bridal and wedding silhouettes with gold zardozi.",
+      "achievements": [
+        "Vogue India Designer of the Year (Heritage Revival) 2024",
+        "Showcased at India Couture Week 2025",
+        "Costume Designer for National Award-winning Period Film",
+        "Empaneled with the Craft Council of India Artisans Guild"
+      ],
+      "history": [
+        {
+          "year": "2018",
+          "event": "Launched flagship luxury atelier in Colaba, Mumbai."
+        },
+        {
+          "year": "2020",
+          "event": "Designed the acclaimed 'Benares Royals' bridal line featured in Harper's Bazaar."
+        },
+        {
+          "year": "2022",
+          "event": "Established India's first silk weaver-collaborative fair-trade initiative."
+        },
+        {
+          "year": "2025",
+          "event": "Selected to present the cultural opening showcase at Mumbai Fashion Week."
+        }
+      ],
+      "rating": 4.9,
+      "reviewsCount": 142,
+      "consultationFee": 4500
+    },
+    {
+      "id": "meera_khanna",
+      "name": "Meera Khanna",
+      "city": "New Delhi",
+      "specialty": "Minimal Luxury & Structural Office Wear",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=400",
+      "coverImage": "https://images.unsplash.com/photo-1548624149-f7b3e6432b42?q=80&w=800",
+      "bio": "Meera Khanna defines modern structure for the dynamic young professional woman. From her studio in New Delhi, her focus is pristine tailoring, sculptural linen, fine crepes, and elegant workwear and sharp drapes with smart custom adjustments.",
+      "achievements": [
+        "Elle India 'Power dressing' Design Award 2023",
+        "Designed the 'Nouveau Boardroom' series for Global Leaders Summit",
+        "Pioneer of ultra-high-thread-count anti-crease linen blend patent"
+      ],
+      "history": [
+        {
+          "year": "2019",
+          "event": "Graduated with top honors from NIFT Delhi and launched 'KHANNA' minimal line."
+        },
+        {
+          "year": "2021",
+          "event": "Launched structural power blazer dresses that went viral among India's tech co-founders."
+        },
+        {
+          "year": "2024",
+          "event": "Collaborated with standard business icons for sustainable workwear lines."
+        }
+      ],
+      "rating": 4.8,
+      "reviewsCount": 96,
+      "consultationFee": 3500
+    },
+    {
+      "id": "pooja_nair",
+      "name": "Pooja Nair",
+      "city": "Bengaluru",
+      "specialty": "Sustainable Resort & Premium Casuals",
+      "avatar": "https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=400",
+      "coverImage": "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?q=80&w=800",
+      "bio": "Pooja Nair blends southern Indian weaves with fluid, elegant casual geometry. Her Bengaluru atelier works exclusively with local weavers, organic colors, and relaxed silks, catering to young Indian women who seek effortless, elevated elegance everyday.",
+      "achievements": [
+        "National Green Fashion Catalyst Award 2024",
+        "Featured globally in Eco-Fashion London showcase",
+        "Collaborated on signature hand-block patterns with Mysore organic mills"
+      ],
+      "history": [
+        {
+          "year": "2017",
+          "event": "Started with a boutique capsule in Indiranagar, Bengaluru."
+        },
+        {
+          "year": "2021",
+          "event": "Introduced the 'Elysiana' hand-loomed luxury kaftan series."
+        },
+        {
+          "year": "2023",
+          "event": "Awarded top eco-impact luxury status by India Clean-Fashion consortium."
+        }
+      ],
+      "rating": 4.7,
+      "reviewsCount": 110,
+      "consultationFee": 3000
+    }
+  ],
+  "products": [
+    {
+      "id": "prod_wedding_01",
+      "name": "The Gilded Marigold Lehenga",
+      "price": 185000,
+      "category": "Wedding Collection",
+      "description": "A breathtaking bridal lehenga woven in rich Banarasi silk, featuring meticulous hand-embroidered zardozi work, gold plated threads, and hand-stitched sequin borders. Comes with a pure silk organza dupatta in royal marigold. Inspired by ancient heritage patterns.",
+      "designerId": "aditi_deshmukh",
+      "designerName": "Aditi Deshmukh",
+      "images": [
+        "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600",
+        "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600",
+        "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=600"
+      ],
+      "sizes": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "Custom Measure"
+      ],
+      "stock": 4,
+      "rating": 4.9,
+      "isTrending": true
+    },
+    {
+      "id": "prod_wedding_02",
+      "name": "Rose Quartz Zardozi Anarkali",
+      "price": 125000,
+      "category": "Wedding Collection",
+      "description": "Crafted in ultra-premium raw silk, this heavy flared Anarkali features stunning rose gold hand-embroidery along the chest, cuffs, and floor-sweeping hem. Imbued with Indian craftsmanship.",
+      "designerId": "aditi_deshmukh",
+      "designerName": "Aditi Deshmukh",
+      "images": [
+        "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=600",
+        "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL",
+        "Custom Measure"
+      ],
+      "stock": 6,
+      "rating": 4.8
+    },
+    {
+      "id": "prod_office_01",
+      "name": "The Ivory Power Crepe Blazer Suit",
+      "price": 42000,
+      "category": "Office Wear",
+      "description": "A tailored double-breasted power blazer paired with matching straight-leg trousers, styled for ambitious women. Crafted with Italian luxury crepe, structured shoulder pads, and discreet luxury gold buttons. Full satin lining.",
+      "designerId": "meera_khanna",
+      "designerName": "Meera Khanna",
+      "images": [
+        "https://images.unsplash.com/photo-1548624149-f7b3e6432b42?q=80&w=600",
+        "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600"
+      ],
+      "sizes": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock": 12,
+      "rating": 4.7,
+      "isTrending": true
+    },
+    {
+      "id": "prod_office_02",
+      "name": "Midnight Structural Linen Jumpsuit",
+      "price": 28500,
+      "category": "Office Wear",
+      "description": "A sharp, breathable, high-thread-count linen jumpsuit with sharp collars, structured waist belt, and deep pleats. Handcrafted to deliver effortless transition from high-stakes board meetings to premium dining.",
+      "designerId": "meera_khanna",
+      "designerName": "Meera Khanna",
+      "images": [
+        "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=600",
+        "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L"
+      ],
+      "stock": 15,
+      "rating": 4.6
+    },
+    {
+      "id": "prod_casual_01",
+      "name": "The Monsoon Breeze Silk Kaftan",
+      "price": 24000,
+      "category": "Casual Wear",
+      "description": "A floating casual masterpiece created from pure hand-blocked mulberry silk, showcasing organic hand-drawn Indian motifs, and subtle gold thread stitching along the dynamic high-low hemline. Comfortable yet luxurious.",
+      "designerId": "pooja_nair",
+      "designerName": "Pooja Nair",
+      "images": [
+        "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?q=80&w=600",
+        "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600"
+      ],
+      "sizes": [
+        "XS/S",
+        "M/L",
+        "XL",
+        "Free Size"
+      ],
+      "stock": 18,
+      "rating": 4.8,
+      "isTrending": true
+    },
+    {
+      "id": "prod_casual_02",
+      "name": "Champagne Organic Cotton Midi",
+      "price": 18500,
+      "category": "Casual Wear",
+      "description": "Woven in high-quality organic cotton with a soft champagne tint, this flared daily dress features structured gathers, delicate back ribbon closures, and internal pockets. Simple, luxurious, everyday dressing.",
+      "designerId": "pooja_nair",
+      "designerName": "Pooja Nair",
+      "images": [
+        "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600",
+        "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ],
+      "stock": 20,
+      "rating": 4.5
+    },
+    {
+      "id": "prod_designer_01",
+      "name": "The Crimson Empress Cape Gown",
+      "price": 160000,
+      "category": "Designer Collections",
+      "description": "Designed in collaboration with Aditi Deshmukh, this masterpiece is a modern floor-length hand-loomed silk gown draped with an over-the-shoulder Crimson Silk organza cape entirely hand-embroidered with classic motif beads.",
+      "designerId": "aditi_deshmukh",
+      "designerName": "Aditi Deshmukh",
+      "images": [
+        "https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600",
+        "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600"
+      ],
+      "sizes": [
+        "S",
+        "M",
+        "L",
+        "Custom Measure"
+      ],
+      "stock": 3,
+      "rating": 5,
+      "isTrending": true
+    },
+    {
+      "id": "prod_limited_01",
+      "name": "Banarasi Gold Thread Heirloom Saree",
+      "price": 245000,
+      "category": "Premium Limited Editions",
+      "description": "An authentic, serial-numbered legacy saree hand-loomed over 3 months using genuine silver-plated zari threads dipped in premium 24k gold. Highly exclusive collectors item. Number 07 of 15 produced.",
+      "designerId": "aditi_deshmukh",
+      "designerName": "Aditi Deshmukh",
+      "images": [
+        "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600",
+        "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=600"
+      ],
+      "sizes": [
+        "One Size (Saree) + Custom Blouse"
+      ],
+      "stock": 2,
+      "rating": 5,
+      "isTrending": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "ANVAA-827419",
+      "userId": "user_01",
+      "items": [
+        {
+          "product": {
+            "id": "prod_wedding_01",
+            "name": "The Gilded Marigold Lehenga",
+            "price": 185000,
+            "category": "Wedding Collection",
+            "description": "A breathtaking bridal lehenga woven in rich Banarasi silk, featuring meticulous hand-embroidered zardozi work, gold plated threads, and hand-stitched sequin borders. Comes with a pure silk organza dupatta in royal marigold.",
+            "designerId": "aditi_deshmukh",
+            "designerName": "Aditi Deshmukh",
+            "images": [
+              "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600"
+            ],
+            "sizes": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL",
+              "Custom Measure"
+            ],
+            "stock": 4,
+            "rating": 4.9,
+            "isTrending": true
+          },
+          "quantity": 1,
+          "selectedSize": "Custom Measure"
+        }
+      ],
+      "subtotal": 185000,
+      "discount": 18500,
+      "shipping": 0,
+      "total": 166500,
+      "address": {
+        "id": "addr_01",
+        "name": "Vasantika Sen",
+        "street": "Flat 402, Royal Residency, Juhu Tara Road",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400049",
+        "phone": "+91 98765 43210"
+      },
+      "paymentMethod": "UPI Block Secure",
+      "status": "Delivered",
+      "createdAt": "2026-02-14T11:20:00.000Z",
+      "trackingTimeline": [
+        {
+          "status": "Order Placed",
+          "date": "14/02/2026, 11:20:00 AM",
+          "description": "Your premium order has been recorded at the central salon.",
+          "done": true
+        },
+        {
+          "status": "In Crafting",
+          "date": "16/02/2026, 2:15:00 PM",
+          "description": "Artisans commencing precise weaving and drape alignment.",
+          "done": true
+        },
+        {
+          "status": "Quality Check",
+          "date": "22/02/2026, 4:40:00 PM",
+          "description": "Micro inspect for fit and gold thread perfection.",
+          "done": true
+        },
+        {
+          "status": "Dispatched",
+          "date": "24/02/2026, 10:00:00 AM",
+          "description": "Placed in luxury premium boxes with custom notes.",
+          "done": true
+        },
+        {
+          "status": "Delivered",
+          "date": "27/02/2026, 3:30:00 PM",
+          "description": "Pristine physical handover complete.",
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "ANVAA-195821",
+      "userId": "user_01",
+      "items": [
+        {
+          "product": {
+            "id": "prod_office_01",
+            "name": "The Ivory Power Crepe Blazer Suit",
+            "price": 42000,
+            "category": "Office Wear",
+            "description": "A tailored double-breasted power blazer paired with matching straight-leg trousers, styled for ambitious women. Crafted with Italian luxury crepe, structured shoulder pads, and gold accents.",
+            "designerId": "meera_khanna",
+            "designerName": "Meera Khanna",
+            "images": [
+              "https://images.unsplash.com/photo-1548624149-f7b3e6432b42?q=80&w=600"
+            ],
+            "sizes": [
+              "XS",
+              "S",
+              "M",
+              "L",
+              "XL"
+            ],
+            "stock": 12,
+            "rating": 4.7,
+            "isTrending": true
+          },
+          "quantity": 1,
+          "selectedSize": "S"
+        }
+      ],
+      "subtotal": 42000,
+      "discount": 4200,
+      "shipping": 0,
+      "total": 37800,
+      "address": {
+        "id": "addr_01",
+        "name": "Vasantika Sen",
+        "street": "Flat 402, Royal Residency, Juhu Tara Road",
+        "city": "Mumbai",
+        "state": "Maharashtra",
+        "pincode": "400049",
+        "phone": "+91 98765 43210"
+      },
+      "paymentMethod": "Credit Card Elite",
+      "status": "Delivered",
+      "createdAt": "2026-04-05T09:12:00.000Z",
+      "trackingTimeline": [
+        {
+          "status": "Order Placed",
+          "date": "05/04/2026, 09:12:00 AM",
+          "description": "Your premium order has been recorded at the central salon.",
+          "done": true
+        },
+        {
+          "status": "In Crafting",
+          "date": "06/04/2026, 11:30:00 AM",
+          "description": "Artisans commencing precise weaving and drape alignment.",
+          "done": true
+        },
+        {
+          "status": "Quality Check",
+          "date": "08/04/2026, 4:10:00 PM",
+          "description": "Micro inspect for fit and gold thread perfection.",
+          "done": true
+        },
+        {
+          "status": "Dispatched",
+          "date": "09/04/2026, 02:00:00 PM",
+          "description": "Placed in luxury premium boxes with custom notes.",
+          "done": true
+        },
+        {
+          "status": "Delivered",
+          "date": "11/04/2026, 1:15:00 PM",
+          "description": "Pristine physical handover complete.",
+          "done": true
+        }
+      ]
+    }
+  ],
+  "chats": [
+    {
+      "id": "chat_thread_aditi",
+      "customerId": "user_01",
+      "customerName": "Vasantika Sen",
+      "designerId": "aditi_deshmukh",
+      "designerName": "Aditi Deshmukh",
+      "messages": [
+        {
+          "id": "msg_init_1",
+          "sender": "designer",
+          "content": "Welcome to ANVAA, Vasantika. I am Aditi. I look forward to telling premium stories through your attire. How can I guide you today? Would you like a wedding design consultation or custom sizing advice?",
+          "timestamp": "2026-06-17T10:49:31.100Z"
+        }
+      ],
+      "lastUpdated": "2026-06-17T10:49:31.100Z"
+    }
+  ],
+  "consultations": [],
+  "reviews": [
+    {
+      "id": "rev_1",
+      "productId": "prod_wedding_01",
+      "userName": "Preeti Sharma",
+      "rating": 5,
+      "comment": "An absolute masterpiece! Wore this for my sangeet and received hundreds of compliments. The gold thread is gorgeous.",
+      "date": "2026-05-12"
+    }
+  ],
+  "wishlist": [
+    "prod_wedding_01",
+    "prod_office_01"
+  ]
+}

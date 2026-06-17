@@ -1,0 +1,134 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Outfit:wght@100..900&family=Inter:wght@400;500;650;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Lora", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+}
+
+/* Global legibility overrides for all age groups */
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Overriding light font classes to render clearly (450/medium-normal weight) */
+.font-light {
+  font-weight: 450 !important;
+}
+
+.font-thin {
+  font-weight: 400 !important;
+}
+
+/* Force headings to be bold and clear */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 750 !important;
+  letter-spacing: -0.015em;
+}
+
+/* Custom luxury transitions/animations */
+.luxury-gradient {
+  background: linear-gradient(135deg, #FAF9F6 0%, #F5E6D3 50%, #FAF9F6 100%);
+}
+
+@keyframes luxury-sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.luxury-shimmer-bg {
+  background: linear-gradient(90deg, 
+    #FFFDFB 25%, 
+    #FAF5EF 37%, 
+    #FFF0F2 50%, 
+    #FAF5EF 63%, 
+    #FFFDFB 75%
+  );
+  background-size: 200% 100%;
+  animation: luxury-sweep 2.2s infinite linear;
+}
+
+.gold-gradient {
+  background: linear-gradient(135deg, #BF953F 0%, #FCF6BA 25%, #B38728 50%, #FBF5B7 75%, #AA771C 100%);
+}
+
+.gold-text-gradient {
+  background: linear-gradient(135deg, #BF953F 0%, #D4AF37 50%, #AA771C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FAF9F6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D4AF37;
+  border-radius: 3px;
+}
+
+/* Luxury slide-up text reveal animation */
+@keyframes text-slide-up {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes text-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-text-reveal {
+  opacity: 0;
+  animation: text-slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-text-fade {
+  opacity: 0;
+  animation: text-fade-in 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Applying entrance animations automatically to main page titles and subtitles */
+h1, h2, h3 {
+  animation: text-slide-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+p.italic {
+  animation: text-fade-in 0.9s ease-out forwards;
+}
+
+/* Legibility enhancements for micro-copy (making them readable for older eyes) */
+.text-\[8px\] {
+  font-size: 10px !important;
+}
+.text-\[9px\] {
+  font-size: 11px !important;
+}
+.text-\[10px\] {
+  font-size: 12px !important;
+}
+.text-\[11px\] {
+  font-size: 12px !important;
+}
+

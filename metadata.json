@@ -1,0 +1,8 @@
+{
+  "name": "ANVAA Luxury Fashion",
+  "description": "An immersive, interactive women-only premium fashion and designer-led e-commerce experience for Gen Z and young professionals in India.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
