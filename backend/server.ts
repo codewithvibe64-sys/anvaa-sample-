@@ -4,12 +4,56 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import { User } from "./models/user.model";
+import { Order } from "./models/order.model";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const DB_FILE = path.join(process.cwd(), "database.json");
+
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/anvaa";
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log("Connected to MongoDB Atlas successfully!");
+    seedMongoVIPUser();
+  })
+  .catch((err) => console.error("MongoDB Atlas connection error:", err));
+
+async function seedMongoVIPUser() {
+  try {
+    const vipEmail = "codewithvibe64@gmail.com";
+    const existing = await User.findOne({ email: vipEmail });
+    if (!existing) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash("vip123", salt);
+      const vipUser = new User({
+        email: vipEmail,
+        password: hashedPassword,
+        name: "VASANTIKA SEN",
+        phone: "+91 98765 43210",
+        role: "admin",
+        savedAddresses: [
+          {
+            name: "Vasantika Sen",
+            street: "Flat 402, Royal Residency, Juhu Tara Road",
+            city: "Mumbai",
+            state: "Maharashtra",
+            pincode: "400049",
+            phone: "+91 98765 43210"
+          }
+        ]
+      });
+      await vipUser.save();
+      console.log("VIP User seeded successfully in MongoDB Atlas.");
+    }
+  } catch (err) {
+    console.error("Error seeding VIP User in MongoDB:", err);
+  }
+}
 
 app.use(express.json());
 
@@ -529,40 +573,53 @@ app.delete("/api/admin/designers/:id", (req, res) => {
 });
 
 // Admin customer list & database metrics
-app.get("/api/admin/customers", (req, res) => {
-  const db = getDB();
-  res.json(db ? db.users : []);
+app.get("/api/admin/customers", async (req, res) => {
+  try {
+    const users = await User.find({}).select("-password");
+    res.json(users);
+  } catch (err: any) {
+    console.error("Fetch customers error:", err);
+    res.status(500).json({ error: "Failed to fetch customers" });
+  }
 });
 
-app.get("/api/admin/analytics", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB load failure" });
+app.get("/api/admin/analytics", async (req, res) => {
+  try {
+    const db = getDB();
+    if (!db) return res.status(500).json({ error: "DB load failure" });
 
-  const totalSales = db.orders.reduce((acc: number, o: any) => acc + (o.status !== "Cancelled" ? o.total : 0), 0);
-  const totalOrders = db.orders.length;
-  const orderCountByStatus = db.orders.reduce((acc: any, o: any) => {
-    acc[o.status] = (acc[o.status] || 0) + 1;
-    return acc;
-  }, {});
+    const mongoOrders = await Order.find({});
+    const totalSales = mongoOrders.reduce((acc: number, o: any) => acc + (o.status !== "Cancelled" ? o.total : 0), 0);
+    const totalOrders = mongoOrders.length;
+    const orderCountByStatus = mongoOrders.reduce((acc: any, o: any) => {
+      acc[o.status] = (acc[o.status] || 0) + 1;
+      return acc;
+    }, {});
 
-  const revenueByCategory = db.orders.reduce((acc: any, o: any) => {
-    o.items?.forEach((item: any) => {
-      const cat = item.product.category;
-      acc[cat] = (acc[cat] || 0) + (item.product.price * item.quantity);
+    const revenueByCategory = mongoOrders.reduce((acc: any, o: any) => {
+      o.items?.forEach((item: any) => {
+        const cat = item.product.category;
+        acc[cat] = (acc[cat] || 0) + (item.product.price * item.quantity);
+      });
+      return acc;
+    }, {});
+
+    const mongoUsersCount = await User.countDocuments({});
+
+    res.json({
+      totalSales,
+      totalOrders,
+      orderCountByStatus,
+      revenueByCategory,
+      productsCount: db.products.length,
+      designersCount: db.designers.length,
+      usersCount: mongoUsersCount,
+      consultationsCount: db.consultations.length
     });
-    return acc;
-  }, {});
-
-  res.json({
-    totalSales,
-    totalOrders,
-    orderCountByStatus,
-    revenueByCategory,
-    productsCount: db.products.length,
-    designersCount: db.designers.length,
-    usersCount: db.users.length,
-    consultationsCount: db.consultations.length
-  });
+  } catch (err: any) {
+    console.error("Analytics error:", err);
+    res.status(500).json({ error: "Analytics load failure" });
+  }
 });
 
 // POST Review
@@ -822,121 +879,257 @@ app.post("/api/wishlist/toggle", (req, res) => {
   res.json({ success: true, wishlist: db.wishlist });
 });
 
-// Authentication Simulator (Fully stateful for user email session)
-app.post("/api/auth/register", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-
-  const { email, name, phone } = req.body;
-  let user = db.users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-
-  if (user) {
-    return res.status(400).json({ error: "Email is already registered. Please login." });
-  }
-
-  const newUser = {
-    id: "user_" + Date.now(),
-    email: email.toLowerCase(),
-    name,
-    role: "customer",
-    phone: phone || "",
-    savedAddresses: [],
-    createdAt: new Date().toISOString()
-  };
-
-  db.users.push(newUser);
-  saveDB(db);
-  res.json({ success: true, user: newUser });
-});
-
-app.post("/api/auth/login", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-
-  const { email } = req.body;
-  let user = db.users.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-
-  if (!user) {
-    // Auto-create a guest user if login with any email is done, for friendly UX!
-    const newUser = {
-      id: "user_" + Date.now(),
-      email: email.toLowerCase(),
-      name: email.split("@")[0].toUpperCase() + " / Premium Member",
-      role: email.toLowerCase().includes("admin") || email.toLowerCase() === "codewithvibe64@gmail.com" ? "admin" : "customer",
-      phone: "+91 99999 88888",
-      savedAddresses: [
-        {
-          id: "addr_default",
-          name: "My Silk Villa",
-          street: "18 Orchard Boulevard, Sector 15",
-          city: "New Delhi",
-          state: "Delhi",
-          pincode: "110001",
-          phone: "+91 99999 88888"
-        }
-      ],
-      createdAt: new Date().toISOString()
-    };
-    db.users.push(newUser);
-    saveDB(db);
-    user = newUser;
-  }
-
-  res.json({ success: true, user });
-});
-
-app.post("/api/auth/save-address", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-
-  const { userId, address } = req.body;
-  const userIndex = db.users.findIndex((u: any) => u.id === userId);
-  if (userIndex !== -1) {
-    if (!db.users[userIndex].savedAddresses) {
-      db.users[userIndex].savedAddresses = [];
+// Authentication (Stateful MongoDB database integration)
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { email, name, phone, password } = req.body;
+    if (!email || !name || !password) {
+      return res.status(400).json({ error: "Missing required registration parameters." });
     }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      return res.status(400).json({ error: "Email is already registered. Please login." });
+    }
+
+    // Hash password with bcryptjs
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = new User({
+      email: email.toLowerCase(),
+      password: hashedPassword,
+      name,
+      phone: phone || "",
+      avatar: "",
+      role: email.toLowerCase().includes("admin") || email.toLowerCase() === "codewithvibe64@gmail.com" ? "admin" : "customer",
+      savedAddresses: []
+    });
+
+    await newUser.save();
+
+    const userObj = newUser.toObject();
+    delete userObj.password;
+
+    res.json({ success: true, user: userObj });
+  } catch (err: any) {
+    console.error("Register error:", err);
+    res.status(500).json({ error: "Registration process failed. Please try again." });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required to access your VIP Atelier account." });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return res.status(400).json({ error: "No account exists with this email in the ANVAA registry. Please sign up first." });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Incorrect security password credentials. Please verify." });
+    }
+
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    res.json({ success: true, user: userObj });
+  } catch (err: any) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Authentication failed. Try again." });
+  }
+});
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) {
+      return res.status(400).json({ error: "Missing Google authentication credential." });
+    }
+
+    // Verify token using Google tokeninfo API (clean, dependency-free verification)
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!verifyRes.ok) {
+      return res.status(400).json({ error: "Invalid Google credential token." });
+    }
+
+    const payload = await verifyRes.json();
+    const { email, name, picture } = payload;
+    if (!email) {
+      return res.status(400).json({ error: "Google account does not provide an email address." });
+    }
+
+    // Check if user exists in MongoDB
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      // Create new user for Google Sign-in with a secure dummy password
+      const dummyPassword = await bcrypt.hash("google-oauth-user-" + Date.now(), 10);
+      user = new User({
+        email: email.toLowerCase(),
+        password: dummyPassword,
+        name: name || "Google User",
+        phone: "",
+        avatar: picture || "",
+        role: email.toLowerCase() === "codewithvibe64@gmail.com" ? "admin" : "customer",
+        savedAddresses: []
+      });
+      await user.save();
+      console.log(`New user registered via Google Sign-In: ${email}`);
+    } else {
+      // User exists, update avatar if empty
+      if (!user.avatar && picture) {
+        user.avatar = picture;
+        await user.save();
+      }
+      console.log(`Existing user logged in via Google Sign-In: ${email}`);
+    }
+
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    res.json({ success: true, user: userObj });
+  } catch (err: any) {
+    console.error("Google authentication error:", err);
+    res.status(500).json({ error: "Google Sign-In failed. Please try again." });
+  }
+});
+
+app.post("/api/auth/update-profile", async (req, res) => {
+  try {
+    const { userId, name, phone, password, address, avatar } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required." });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "VIP user session not found." });
+    }
+
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (avatar !== undefined) user.avatar = avatar; // Supports base64 profile image
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    if (address) {
+      const parsedAddress = {
+        name: address.name,
+        street: address.street,
+        city: address.city,
+        state: address.state || "Delhi",
+        pincode: address.pincode,
+        phone: address.phone
+      };
+
+      if (!user.savedAddresses || user.savedAddresses.length === 0) {
+        user.savedAddresses.push(parsedAddress as any);
+      } else {
+        const existingAddr = user.savedAddresses[0];
+        existingAddr.name = parsedAddress.name;
+        existingAddr.street = parsedAddress.street;
+        existingAddr.city = parsedAddress.city;
+        existingAddr.state = parsedAddress.state;
+        existingAddr.pincode = parsedAddress.pincode;
+        existingAddr.phone = parsedAddress.phone;
+      }
+    }
+
+    await user.save();
+
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    res.json({ success: true, user: userObj });
+  } catch (err: any) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ error: "Failed to update profile details." });
+  }
+});
+
+app.post("/api/auth/save-address", async (req, res) => {
+  try {
+    const { userId, address } = req.body;
     
+    // Find user either by Mongo _id or standard id
+    let user = await User.findById(userId);
+    if (!user) {
+      user = await User.findOne({ email: userId });
+    }
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     if (!address.id) {
       address.id = "addr_" + Date.now();
     }
 
-    const addrIdx = db.users[userIndex].savedAddresses.findIndex((a: any) => a.id === address.id);
+    const addrIdx = user.savedAddresses.findIndex((a: any) => a.id === address.id || a._id?.toString() === address.id);
     if (addrIdx !== -1) {
-      db.users[userIndex].savedAddresses[addrIdx] = address;
+      const existingAddr = user.savedAddresses[addrIdx];
+      existingAddr.name = address.name;
+      existingAddr.street = address.street;
+      existingAddr.city = address.city;
+      existingAddr.state = address.state || "Delhi";
+      existingAddr.pincode = address.pincode;
+      existingAddr.phone = address.phone;
     } else {
-      db.users[userIndex].savedAddresses.push(address);
+      user.savedAddresses.push(address as any);
     }
     
-    saveDB(db);
-    res.json({ success: true, address, user: db.users[userIndex] });
-  } else {
-    res.status(404).json({ error: "User not found" });
+    await user.save();
+    
+    const userObj = user.toObject();
+    delete userObj.password;
+    res.json({ success: true, address, user: userObj });
+  } catch (err: any) {
+    console.error("Save address error:", err);
+    res.status(500).json({ error: "Failed to save address" });
   }
 });
 
 // Orders & Payments
-app.get("/api/orders/user/:userId", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-  const userOrders = db.orders.filter((o: any) => o.userId === req.params.userId);
-  res.json(userOrders);
+app.get("/api/orders/user/:userId", async (req, res) => {
+  try {
+    const userOrders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.json(userOrders);
+  } catch (err: any) {
+    console.error("Fetch user orders error:", err);
+    res.status(500).json({ error: "Failed to fetch orders." });
+  }
 });
 
 // Admin orders endpoint
-app.get("/api/admin/orders", (req, res) => {
-  const db = getDB();
-  res.json(db ? db.orders : []);
+app.get("/api/admin/orders", async (req, res) => {
+  try {
+    const orders = await Order.find({}).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err: any) {
+    console.error("Fetch admin orders error:", err);
+    res.status(500).json({ error: "Failed to fetch admin orders." });
+  }
 });
 
 // Admin order status update
-app.post("/api/admin/orders/status", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-  
-  const { orderId, status } = req.body;
-  const index = db.orders.findIndex((o: any) => o.id === orderId);
-  if (index !== -1) {
-    db.orders[index].status = status;
+app.post("/api/admin/orders/status", async (req, res) => {
+  try {
+    const { orderId, status } = req.body;
+    const order = await Order.findOne({ id: orderId });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    order.status = status;
     
     // Push updates to tracking timeline
     const timelineDesc = {
@@ -954,84 +1147,94 @@ app.post("/api/admin/orders/status", (req, res) => {
     const statuses = ["Order Placed", "In Crafting", "Quality Check", "Dispatched", "Out for Delivery", "Delivered"];
     const currentIdx = statuses.indexOf(status);
 
-    db.orders[index].trackingTimeline = db.orders[index].trackingTimeline.map((item: any) => {
+    order.trackingTimeline.forEach((item: any) => {
       const itemIdx = statuses.indexOf(item.status);
       if (itemIdx <= currentIdx) {
-        return { ...item, done: true, date: new Date().toLocaleString() };
+        item.done = true;
+        item.date = new Date().toLocaleString();
       }
-      return item;
     });
 
-    saveDB(db);
-    res.json({ success: true, order: db.orders[index] });
-  } else {
-    res.status(404).json({ error: "Order not found" });
+    await order.save();
+    res.json({ success: true, order });
+  } catch (err: any) {
+    console.error("Admin order status update error:", err);
+    res.status(500).json({ error: "Failed to update order status." });
   }
 });
 
-app.post("/api/orders", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
+app.post("/api/orders", async (req, res) => {
+  try {
+    const { userId, items, subtotal, discount, shipping, total, address, paymentMethod } = req.body;
 
-  const { userId, items, subtotal, discount, shipping, total, address, paymentMethod } = req.body;
+    const orderId = "ANVAA-" + Math.floor(100000 + Math.random() * 900000);
 
-  const orderId = "ANVAA-" + Math.floor(100000 + Math.random() * 900000);
+    const newOrder = new Order({
+      id: orderId,
+      userId,
+      items,
+      subtotal,
+      discount,
+      shipping,
+      total,
+      address,
+      paymentMethod,
+      status: "Order Placed",
+      trackingTimeline: [
+        { status: "Order Placed", date: new Date().toLocaleString(), description: "Your premium order has been recorded at the central salon.", done: true },
+        { status: "In Crafting", date: "--", description: "Artisans commencing precise weaving and drape alignment.", done: false },
+        { status: "Quality Check", date: "--", description: "Micro inspect for fit and gold thread perfection.", done: false },
+        { status: "Dispatched", date: "--", description: "Placed in luxury premium boxes with custom notes.", done: false },
+        { status: "Delivered", date: "--", description: "Pristine physical handover complete.", done: false }
+      ]
+    });
 
-  const newOrder = {
-    id: orderId,
-    userId,
-    items,
-    subtotal,
-    discount,
-    shipping,
-    total,
-    address,
-    paymentMethod,
-    status: "Order Placed",
-    createdAt: new Date().toISOString(),
-    trackingTimeline: [
-      { status: "Order Placed", date: new Date().toLocaleString(), description: "Your premium order has been recorded at the central salon.", done: true },
-      { status: "In Crafting", date: "--", description: "Artisans commencing precise weaving and drape alignment.", done: false },
-      { status: "Quality Check", date: "--", description: "Micro inspect for fit and gold thread perfection.", done: false },
-      { status: "Dispatched", date: "--", description: "Placed in luxury premium boxes with custom notes.", done: false },
-      { status: "Delivered", date: "--", description: "Prisintine physical handover complete.", done: false }
-    ]
-  };
+    await newOrder.save();
 
-  if (!db.orders) db.orders = [];
-  db.orders.push(newOrder);
-
-  // Decrement stock levels
-  items.forEach((item: any) => {
-    const prodIndex = db.products.findIndex((p: any) => p.id === item.product.id);
-    if (prodIndex !== -1) {
-      db.products[prodIndex].stock = Math.max(0, db.products[prodIndex].stock - item.quantity);
+    // Decrement stock levels
+    const db = getDB();
+    if (db) {
+      items.forEach((item: any) => {
+        const prodIndex = db.products.findIndex((p: any) => p.id === item.product.id);
+        if (prodIndex !== -1) {
+          db.products[prodIndex].stock = Math.max(0, db.products[prodIndex].stock - item.quantity);
+        }
+      });
+      saveDB(db);
     }
-  });
 
-  saveDB(db);
-  res.json({ success: true, order: newOrder });
+    res.json({ success: true, order: newOrder });
+  } catch (err: any) {
+    console.error("Create order error:", err);
+    res.status(500).json({ error: "Failed to place order." });
+  }
 });
 
 // Serve frontend build or dev mode with Vite server
 async function start() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-      root: path.join(process.cwd(), "frontend"),
-    });
-    app.use(vite.middlewares);
+  const isBackendOnly = process.argv.includes("--backend-only") || process.env.BACKEND_ONLY === "true";
+
+  if (isBackendOnly) {
+    console.log("Starting backend in standalone API mode (--backend-only).");
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+        root: path.join(process.cwd(), "frontend"),
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`ANVAA fullstack luxury server is runnning at http://127.0.0.1:${PORT}`);
+    console.log(`ANVAA backend luxury server is running at http://127.0.0.1:${PORT}`);
   });
 }
 

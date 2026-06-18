@@ -132,3 +132,258 @@ p.italic {
   font-size: 12px !important;
 }
 
+/* Floating ambient luxury sparkles keyframes */
+@keyframes float-sparkle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg) scale(1.25);
+    opacity: 0.85;
+  }
+}
+
+.animate-float-sparkle-1 {
+  animation: float-sparkle 8s ease-in-out infinite;
+}
+
+.animate-float-sparkle-2 {
+  animation: float-sparkle 11s ease-in-out infinite 2s;
+}
+
+.animate-float-sparkle-3 {
+  animation: float-sparkle 14s ease-in-out infinite 4s;
+}
+
+/* Luxury Input Field Glowing Border */
+.luxury-input {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.luxury-input:focus {
+  border-color: #D4AF37 !important;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.18);
+  background-color: #ffffff !important;
+}
+
+/* Deluxe Glow Button */
+.gold-glow-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.gold-glow-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  transition: none;
+}
+
+.gold-glow-button:hover::after {
+  left: 150%;
+  transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Scroll-triggered zoom support */
+.scroll-zoom-container {
+  overflow: hidden;
+}
+.scroll-zoom-img {
+  transition: transform 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.scroll-zoom-container:hover .scroll-zoom-img {
+  transform: scale(1.04);
+}
+
+/* Premium Gold Shimmering Border Sweep Effect */
+@keyframes gold-shine-border {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.gold-shine-border {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(212, 175, 55, 0.15) 25%,
+    rgba(212, 175, 55, 0.35) 50%,
+    rgba(212, 175, 55, 0.15) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: gold-shine-border 3s ease-in-out infinite;
+}
+
+/* Luxury Form Field Slide Animation */
+@keyframes form-field-slide {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.form-field-slide {
+  animation: form-field-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.form-field-slide-1 {
+  animation: form-field-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.form-field-slide-2 {
+  animation: form-field-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.1s;
+}
+
+.form-field-slide-3 {
+  animation: form-field-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 0.2s;
+}
+
+/* Morphing Card Height Transition */
+.auth-card-morph {
+  transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Luxury Reveal Animation for Full Page Elements */
+@keyframes luxury-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-luxury-reveal {
+  animation: luxury-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Sparkle Container for Decorative Elements */
+@keyframes sparkle-twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.1) rotate(180deg);
+  }
+}
+
+.animate-sparkle-twinkle-1 {
+  animation: sparkle-twinkle 2.5s ease-in-out infinite;
+}
+
+.animate-sparkle-twinkle-2 {
+  animation: sparkle-twinkle 3s ease-in-out infinite 0.3s;
+}
+
+.animate-sparkle-twinkle-3 {
+  animation: sparkle-twinkle 3.5s ease-in-out infinite 0.6s;
+}
+
+.animate-sparkle-twinkle-4 {
+  animation: sparkle-twinkle 4s ease-in-out infinite 0.9s;
+}
+
+/* Horizontal Form Slide for Register/Login Toggle */
+@keyframes form-horizontal-slide {
+  0% {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes form-horizontal-slide-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+.form-enter {
+  animation: form-horizontal-slide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.form-exit {
+  animation: form-horizontal-slide-out 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: absolute;
+}
+
+/* Premium Scroll Progress Bar Glow */
+@keyframes scroll-bar-glow {
+  0% {
+    box-shadow: 0 1px 6px rgba(212, 175, 55, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(212, 175, 55, 0.5);
+  }
+  100% {
+    box-shadow: 0 1px 6px rgba(212, 175, 55, 0.3);
+  }
+}
+
+.scroll-progress-bar {
+  animation: scroll-bar-glow 2s ease-in-out infinite;
+}
+
+/* Staggered Grid Reveal */
+@keyframes grid-item-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.grid-item-reveal {
+  animation: grid-item-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Luxury button hover glow effect */
+@keyframes button-glow {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(170, 119, 28, 0.2);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(170, 119, 28, 0.35);
+  }
+}
+
+.button-glow-hover:hover {
+  animation: button-glow 0.8s ease-in-out infinite;
+}
+
+

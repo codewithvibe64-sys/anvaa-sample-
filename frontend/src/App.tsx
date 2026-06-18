@@ -8,9 +8,9 @@ import {
   ShoppingBag, Heart, Search, ArrowRight, Star, Check, Trash2, 
   ChevronRight, Sparkles, Filter, Award, ShieldAlert, Sliders,
   Clock, MapPin, Smile, MessageSquare, ChevronDown, CheckCircle, 
-  CreditCard, Loader2, Sparkle, UserCheck, Shield
+  CreditCard, Loader2, Sparkle, UserCheck, Shield, Camera, User
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
 import { gsap } from 'gsap';
 
 import Navbar from './components/Navbar';
@@ -20,6 +20,8 @@ import DesignerMarketplace from './components/DesignerMarketplace';
 import ChatAtelier from './components/ChatAtelier';
 import TrackingDocketModal from './components/TrackingDocketModal';
 import { Product, Designer, CartItem, Order, Consultation, Review } from './types';
+import AuthScreen from './components/AuthScreen';
+
 
 const getThemeClasses = (tab: string, customColorMood: string = 'rose') => {
   let baseTheme = {
@@ -184,7 +186,26 @@ const getThemeClasses = (tab: string, customColorMood: string = 'rose') => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const [activeTab, setActiveTab] = useState<string>('auth');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
   const [customColorMood, setCustomColorMood] = useState<string>('gold');
   const [products, setProducts] = useState<Product[]>([]);
   const [designers, setDesigners] = useState<Designer[]>([]);
@@ -229,12 +250,51 @@ export default function App() {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewName, setReviewName] = useState('');
   const [isZoomed, setIsZoomed] = useState(false);
+  const [showProfileGuide, setShowProfileGuide] = useState(false);
 
-  // Auth Form
-  const [authEmail, setAuthEmail] = useState('');
-  const [authName, setAuthName] = useState('');
-  const [authPhone, setAuthPhone] = useState('');
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  // Profile Editing States
+
+  const [profileName, setProfileName] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileAvatar, setProfileAvatar] = useState('');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profileConfirmPassword, setProfileConfirmPassword] = useState('');
+  const [profileStreet, setProfileStreet] = useState('');
+  const [profileCity, setProfileCity] = useState('');
+  const [profileState, setProfileState] = useState('Delhi');
+  const [profilePincode, setProfilePincode] = useState('');
+
+  // Handle Avatar profile picture file selection
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileAvatar(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileName(currentUser.name || '');
+      setProfilePhone(currentUser.phone || '');
+      setProfileAvatar(currentUser.avatar || '');
+      if (currentUser.savedAddresses && currentUser.savedAddresses.length > 0) {
+        const addr = currentUser.savedAddresses[0];
+        setProfileStreet(addr.street || '');
+        setProfileCity(addr.city || '');
+        setProfileState(addr.state || 'Delhi');
+        setProfilePincode(addr.pincode || '');
+      } else {
+        setProfileStreet('');
+        setProfileCity('');
+        setProfileState('Delhi');
+        setProfilePincode('');
+      }
+    }
+  }, [currentUser]);
 
   // Load Initial Data
   const fetchProducts = async () => {
@@ -283,12 +343,16 @@ export default function App() {
     fetchDesigners();
     fetchWishlist();
 
-    // Auto-login with test VIP account for delightful instant UX
-    handleAutoLogin();
+    // Auto-login with test VIP account for delightful instant UX disabled on mount
+    // handleAutoLogin();
   }, []);
 
   // GSAP and Scroll animations on activeTab transition
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (activeTab === 'dashboard') {
+      setShowProfileGuide(false);
+    }
     if (activeTab === 'home') {
       // Elegant staggering reveal of the title header
       gsap.fromTo('.gsap-hero-title', 
@@ -362,40 +426,54 @@ export default function App() {
     }
   }, [currentUser, placedOrder]);
 
-  // Auth Functions
-  const handleAuthSubmit = async (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authEmail) return;
+    if (!currentUser) return;
+
+    if (profilePassword && profilePassword !== profileConfirmPassword) {
+      showToast("Passwords do not match.", "error");
+      return;
+    }
 
     try {
-      const url = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
-      const body = isRegisterMode 
-        ? { email: authEmail, name: authName, phone: authPhone }
-        : { email: authEmail };
-
-      const res = await fetch(url, {
+      const response = await fetch('/api/auth/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          userId: currentUser._id || currentUser.id,
+          name: profileName,
+          phone: profilePhone,
+          avatar: profileAvatar,
+          password: profilePassword || undefined,
+          address: {
+            name: profileName,
+            street: profileStreet,
+            city: profileCity,
+            state: profileState,
+            pincode: profilePincode,
+            phone: profilePhone
+          }
+        })
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      const data = await response.json();
+      if (response.ok) {
         setCurrentUser(data.user);
-        alert(`Successfully authenticated as ${data.user.name}. Welcome to ANVAA.`);
-        setIsAuthOpen(false);
-        setActiveTab('home');
+        setProfilePassword('');
+        setProfileConfirmPassword('');
+        showToast("Profile details updated successfully in the MongoDB Atlas registry.", "success");
       } else {
-        alert(data.error || "Authentication failed. Please verify credentials.");
+        showToast(data.error || "Failed to update profile.", "error");
       }
     } catch (err) {
-      console.error("Auth error", err);
+      console.error("Profile update error:", err);
+      showToast("Connection to update profile failed.", "error");
     }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    alert("Logged out from the ANVAA VIP studio session.");
+    showToast("Logged out from the ANVAA VIP studio session.", 'info');
     setActiveTab('home');
   };
 
@@ -462,21 +540,21 @@ export default function App() {
   const applyPromo = () => {
     if (couponCode.toUpperCase() === 'ANVAANEW') {
       setCouponDiscount(0.10);
-      alert("✦ 10% First Order Heritage discount code accepted!");
+      showToast("✦ 10% First Order Heritage discount code accepted!", 'success');
     } else {
-      alert("Invalid or expired elite invitation code.");
+      showToast("Invalid or expired elite invitation code.", 'error');
     }
   };
 
   // Complete Order
   const handleCompleteOrder = async () => {
     if (!currentUser) {
-      alert("Bespoke orders require VIP account registration.");
+      showToast("Bespoke orders require VIP account registration.", 'error');
       setIsAuthOpen(true);
       return;
     }
     if (!addressName || !addressStreet || !addressCity || !addressPincode || !addressPhone) {
-      alert("Standard couture shipments need complete delivery address information.");
+      showToast("Standard couture shipments need complete delivery address information.", 'error');
       return;
     }
 
@@ -514,7 +592,7 @@ export default function App() {
         setIsCartOpen(false);
         setTrackingOrder(data.order);
         setActiveTab('tracking');
-        alert(`Congratulations! Premium Order ${data.order.id} is recorded with ANVAA Ateliers.`);
+        showToast(`Congratulations! Premium Order ${data.order.id} is recorded with ANVAA Ateliers.`, 'success');
       }
     } catch (err) {
       console.error("Checkout process failed", err);
@@ -552,7 +630,7 @@ export default function App() {
       });
 
       if (res.ok) {
-        alert("Your refined critique has been recorded with the design salon.");
+        showToast("Your refined critique has been recorded with the design salon.", 'success');
         setSelectedProduct(null); // Close modal
         setReviewComment('');
         setReviewRating(5);
@@ -591,6 +669,11 @@ export default function App() {
   return (
     <div className={`min-h-screen ${theme.bg} font-sans ${theme.text} ${theme.selection} flex flex-col justify-between transition-all duration-[800ms] ease-in-out`}>
       
+      {/* Scroll Progress Bar */}
+      <motion.div 
+        className="fixed top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-[#AA771C] via-[#D4AF37] to-[#BF953F] origin-left z-[9999] shadow-[0_1px_6px_rgba(212,175,55,0.3)]"
+        style={{ scaleX }}
+      />
       {/* Dynamic Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -602,14 +685,22 @@ export default function App() {
         onOpenCart={() => setIsCartOpen(true)}
         customColorMood={customColorMood}
         setCustomColorMood={setCustomColorMood}
+        showProfileGuide={showProfileGuide}
       />
 
       {/* RENDER ACTIVE TAB BODY */}
       <main className="flex-1">
-
-        {/* 1. HOME VIEW */}
-        {activeTab === 'home' && (
-          <div className="space-y-20 animate-luxury-reveal">
+        <AnimatePresence mode="wait">
+          {/* 1. HOME VIEW */}
+          {activeTab === 'home' && (
+            <motion.div
+              key="home"
+              initial={{ opacity: 0, y: 15, scale: 0.995 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -15, scale: 0.995 }}
+              transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-20"
+            >
             
             {/* FULLSCREEN HERO METROPOLIS */}
             <section className="relative h-[90vh] bg-[#FFFBFB] text-[#4A1525] flex items-center overflow-hidden border-b border-[#D4AF37]/25">
@@ -675,35 +766,50 @@ export default function App() {
                 <div className="rotate-90 origin-center translate-y-8 text-[9px] uppercase tracking-[0.4em] font-black text-[#D4AF37]">Scroll down</div>
               </div>
             </section>
-
-            {/* THREE BLOCK CATEGORY CARDS SHOWCASE */}
-            <motion.section 
-              className="max-w-7xl mx-auto px-6 lg:px-12 py-10"
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            >
-              <div className="text-center md:text-left mb-12">
+            <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10">
+              <motion.div 
+                className="text-center md:text-left mb-12"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.8 }}
+              >
                 <span className="text-[10px] uppercase tracking-[0.3em] font-black text-[#D4AF37] block mb-2">SHOP THE VISION</span>
                 <h2 className={`text-3xl lg:text-4xl font-serif italic ${theme.text}`}>Curated Capsules</h2>
-              </div>
+              </motion.div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-3 gap-8"
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, margin: "-60px" }}
+                variants={{
+                  hidden: {},
+                  show: {
+                    transition: {
+                      staggerChildren: 0.15
+                    }
+                  }
+                }}
+              >
                 {[
                   { cat: 'Wedding Collection', title: 'Wedding Luxe', desc: 'Sangeet, lehengas & heavy zardozi.', img: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600' },
                   { cat: 'Office Wear', title: 'Office Chic', desc: 'Structured crepe suits & crisp drapes.', img: 'https://images.unsplash.com/photo-1548624149-f7b3e6432b42?q=80&w=600' },
                   { cat: 'Casual Wear', title: 'Resort Flow', desc: 'Effortless blocked silks & cotton midis.', img: 'https://images.unsplash.com/photo-1609357605129-26f69add5d6e?q=80&w=600' }
                 ].map((capsule, i) => (
-                  <div 
+                  <motion.div 
                     key={i}
+                    variants={{
+                      hidden: { opacity: 0, y: 30 },
+                      show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } }
+                    }}
                     onClick={() => { setFilterCategory(capsule.cat); setActiveTab('collections'); }}
-                    className="group cursor-pointer relative h-96 overflow-hidden rounded-xl bg-[#4A1525]/10 border border-[#D4AF37]/15 shadow-sm"
+                    className="group cursor-pointer relative h-96 overflow-hidden rounded-xl bg-[#4A1525]/10 border border-[#D4AF37]/15 shadow-sm scroll-zoom-container"
                   >
                     <img 
                       src={capsule.img} 
                       alt={capsule.title} 
-                      className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition-all duration-700 mix-blend-luminosity hover:mix-blend-normal" 
+                      className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition-all duration-700 mix-blend-luminosity hover:mix-blend-normal scroll-zoom-img" 
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#4A1525]/95 via-[#4A1525]/45 to-transparent flex flex-col justify-end p-8">
                       <span className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-black mb-1">CAPSULE COLLECTION</span>
@@ -716,10 +822,10 @@ export default function App() {
                         <ArrowRight size={12} className="text-[#D4AF37]" />
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
-            </motion.section>
+              </motion.div>
+            </section>
 
             {/* HOVER PARALLAX STYLE ACCENT SPLIT: WEDDING FEATURE */}
             <motion.section 
@@ -761,8 +867,22 @@ export default function App() {
                 </div>
 
                 <div className="lg:col-span-7 grid grid-cols-2 gap-4">
-                  <img src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600" className="w-full h-[400px] object-cover rounded-xl shadow-lg border border-[#F5E6D3]" />
-                  <img src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600" className="w-full h-[400px] object-cover rounded-xl mt-8 shadow-lg border border-[#F5E6D3]" />
+                  <motion.img 
+                    initial={{ opacity: 0, y: 40 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600" 
+                    className="w-full h-[400px] object-cover rounded-xl shadow-lg border border-[#F5E6D3]" 
+                  />
+                  <motion.img 
+                    initial={{ opacity: 0, y: 60 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
+                    src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600" 
+                    className="w-full h-[400px] object-cover rounded-xl mt-8 shadow-lg border border-[#F5E6D3]" 
+                  />
                 </div>
               </div>
             </motion.section>
@@ -941,12 +1061,19 @@ export default function App() {
               </div>
             </section>
 
-          </div>
-        )}
+            </motion.div>
+          )}
 
         {/* 2. COLLECTIONS GRIDS */}
         {activeTab === 'collections' && (
-          <div className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16 animate-luxury-reveal">
+          <motion.div
+            key="collections"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16"
+          >
             
             {/* Search + Category Controls */}
             <div className={`border-b ${theme.borderColor} pb-8 mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6`}>
@@ -1032,10 +1159,27 @@ export default function App() {
                 <p className="italic text-neutral-400 font-serif">No styles match your search criteria. Please review tags or enter another drape query.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-                {filteredProducts.map((p) => (
-                  <div 
-                    key={p.id} 
+              <motion.div 
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10"
+                initial="hidden"
+                whileInView="show"
+                viewport={{ once: true, margin: "-60px" }}
+                variants={{
+                  hidden: {},
+                  show: {
+                    transition: {
+                      staggerChildren: 0.12
+                    }
+                  }
+                }}
+              >
+                {filteredProducts.map((p, idx) => (
+                  <motion.div 
+                    key={p.id}
+                    variants={{
+                      hidden: { opacity: 0, y: 30, scale: 0.98 },
+                      show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
+                    }}
                     className={`group ${theme.cardBg} rounded-xl border ${theme.borderColor} overflow-hidden relative shadow-sm hover:shadow-xl transition-all duration-[500ms] flex flex-col justify-between`}
                   >
                     
@@ -1107,39 +1251,61 @@ export default function App() {
                       </div>
                     </div>
 
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             )}
 
-          </div>
+          </motion.div>
         )}
 
         {/* 3. DESIGNER MARKETPLACE TAB CONTAINER */}
         {activeTab === 'designers' && (
-          <DesignerMarketplace
-            designers={designers}
-            products={products}
-            currentUser={currentUser}
-            onBookConsultation={handleBookConsultation}
-            onContactDesigner={handleContactDesigner}
-            setActiveTab={setActiveTab}
-            theme={theme}
-          />
+          <motion.div
+            key="designers"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <DesignerMarketplace
+              designers={designers}
+              products={products}
+              currentUser={currentUser}
+              onBookConsultation={handleBookConsultation}
+              onContactDesigner={handleContactDesigner}
+              setActiveTab={setActiveTab}
+              theme={theme}
+            />
+          </motion.div>
         )}
 
         {/* 4. BESPOKE CHAt TAB CONTAINER */}
         {activeTab === 'chat' && (
-          <ChatAtelier
-            designers={designers}
-            currentUser={currentUser}
-            setActiveTab={setActiveTab}
-          />
+          <motion.div
+            key="chat"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <ChatAtelier
+              designers={designers}
+              currentUser={currentUser}
+              setActiveTab={setActiveTab}
+            />
+          </motion.div>
         )}
 
-        {/* 5. USER DASHBOARD VIEW */}
         {activeTab === 'dashboard' && currentUser && (
-          <div className={`max-w-7xl mx-auto px-6 lg:px-12 py-12 ${theme.text} ${theme.bg} min-h-[80vh] animate-luxury-reveal`}>
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className={`max-w-7xl mx-auto px-6 lg:px-12 py-12 ${theme.text} ${theme.bg} min-h-[80vh]`}
+          >
             
             {/* Header info */}
             <div className={`border-b ${theme.borderColor} pb-6 mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-3`}>
@@ -1161,43 +1327,42 @@ export default function App() {
               
               {/* Profile card left (cols-4) */}
               <div className="lg:col-span-4 bg-white p-6 rounded-2xl border border-neutral-100 shadow-sm space-y-6 h-fit">
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-black border-b pb-2 mb-4">Credentials & Logistics</h3>
-                  <div className="space-y-4 text-xs text-neutral-700 font-light">
-                    <div>
-                      <span className="block font-semibold text-neutral-400">VIP GUEST</span>
-                      <span className="font-bold text-gray-800">{currentUser.name}</span>
-                    </div>
-                    <div>
-                      <span className="block font-semibold text-neutral-400">EMAIL ENCRYPTED</span>
-                      <span className="font-bold text-gray-800">{currentUser.email}</span>
-                    </div>
-                    <div>
-                      <span className="block font-semibold text-neutral-400">PHONE DIRECT</span>
-                      <span className="font-bold text-gray-800 font-mono">{currentUser.phone || "Not recorded"}</span>
-                    </div>
-                    <div>
-                      <span className="block font-semibold text-neutral-400">CRAFT ROSTER ROLE</span>
-                      <span className="inline-block bg-[#FFF0F2] text-[#B76E79] text-[9px] px-3 py-1 uppercase tracking-widest font-black rounded-full border border-[#B76E79]/20">
-                        {currentUser.role}
-                      </span>
-                    </div>
+                {/* Avatar Section */}
+                <div className="flex flex-col items-center space-y-4 pb-6 border-b border-neutral-100">
+                  <div className="relative group w-32 h-32 rounded-full overflow-hidden border-2 border-[#D4AF37] shadow-lg cursor-pointer">
+                    {profileAvatar ? (
+                      <img src={profileAvatar} className="w-full h-full object-cover animate-fade-in" />
+                    ) : (
+                      <div className="w-full h-full bg-[#FAF9F6] flex flex-col items-center justify-center text-neutral-400">
+                        <User size={32} />
+                        <span className="text-[9px] uppercase tracking-wider mt-1">No Image</span>
+                      </div>
+                    )}
+                    <label className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center text-white text-[10px] uppercase font-bold tracking-wider transition-opacity duration-300 cursor-pointer">
+                      <Camera size={18} className="mb-1" />
+                      Upload Portrait
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleAvatarChange} 
+                      />
+                    </label>
+                  </div>
+                  <div className="text-center">
+                    <h4 className="font-serif italic font-bold text-rose-950 text-lg">{currentUser.name}</h4>
+                    <p className="text-[10px] font-mono text-neutral-500 font-semibold">{currentUser.email}</p>
+                    <span className="inline-block mt-2 bg-[#FFF0F2] text-[#B76E79] text-[9px] px-3 py-1 uppercase tracking-widest font-black rounded-full border border-[#B76E79]/20">
+                      {currentUser.role}
+                    </span>
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest text-[#D4AF37] font-black border-b pb-2 mb-3">Saved Shipping Coordinates</h3>
-                  {currentUser.savedAddresses && currentUser.savedAddresses.length > 0 ? (
-                    currentUser.savedAddresses.map((addr: any, idx: number) => (
-                      <div key={idx} className="bg-[#FFFDFB] p-4 rounded-xl border border-rose-100 text-xs leading-relaxed space-y-1 mt-2 shadow-inner">
-                        <p className="font-bold text-gray-800">{addr.name}</p>
-                        <p className="text-neutral-500 font-light">{addr.street}, {addr.city}</p>
-                        <p className="text-neutral-400 font-mono text-[11px]">{addr.pincode} | PH: {addr.phone}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-xs text-neutral-400 italic">No saved addresses coordinates yet. Captured on initial checkout.</p>
-                  )}
+                <div className="space-y-4 text-xs text-neutral-700 font-light">
+                  <div>
+                    <span className="block font-semibold text-neutral-400">PHONE DIRECT</span>
+                    <span className="font-bold text-gray-800 font-mono">{currentUser.phone || "Not recorded"}</span>
+                  </div>
                 </div>
 
                 <div className="pt-2">
@@ -1212,6 +1377,135 @@ export default function App() {
 
               {/* Saved actions right (cols-8) */}
               <div className="lg:col-span-8 space-y-8">
+
+                {/* 1. Account Summary & Analytics */}
+                <div className="bg-[#FFFDFB] border border-[#D4AF37]/35 p-5 rounded-2xl flex items-center justify-between gap-6 shadow-sm flex-wrap">
+                  <div className="space-y-1">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B76E79]">Atelier Activity Summary</h4>
+                    <p className="text-xs text-neutral-600 font-light">
+                      Total Orders Placed: <strong className="font-bold text-gray-800">{ordersHistory.length}</strong>
+                    </p>
+                    <p className="text-xs text-neutral-600 font-light">
+                      Total Spent: <strong className="font-mono font-bold text-[#D4AF37]">₹{ordersHistory.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString('en-IN')}</strong>
+                    </p>
+                  </div>
+                  {ordersHistory.length > 0 && (
+                    <div className="text-left md:text-right md:border-l md:border-neutral-100 md:pl-6 space-y-1">
+                      <h4 className="text-[9px] font-black uppercase tracking-widest text-neutral-400">Most Recent Order</h4>
+                      <p className="text-xs font-mono font-bold text-gray-800">{ordersHistory[0].id}</p>
+                      <p className="text-[10px] text-[#B76E79] font-bold">₹{ordersHistory[0].total?.toLocaleString('en-IN')}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Profile Details Form */}
+                <div className="bg-white p-6 border border-neutral-100 rounded-2xl shadow-sm">
+                  <h3 className="font-serif italic text-lg text-[#4A1525] mb-5 border-b pb-2 flex items-center gap-2">
+                    <Sliders className="text-[#D4AF37]" size={18} />
+                    Profile Customization Atelier
+                  </h3>
+                  
+                  <form onSubmit={handleUpdateProfile} className="space-y-6 text-xs">
+                    {/* Name & Phone Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Legal Name</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] font-medium text-zinc-800 luxury-input rounded"
+                          value={profileName}
+                          onChange={(e) => setProfileName(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Direct Phone Number</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800 luxury-input rounded"
+                          value={profilePhone}
+                          onChange={(e) => setProfilePhone(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Shipping Address Section */}
+                    <div>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B76E79] border-b pb-1.5 mb-3">Shipping Logistics Coordinates</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Street Address</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Flat 402, Royal Residency, Juhu Tara Road"
+                            className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] text-zinc-800 luxury-input rounded"
+                            value={profileStreet}
+                            onChange={(e) => setProfileStreet(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">City</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Mumbai"
+                            className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] text-zinc-800 luxury-input rounded"
+                            value={profileCity}
+                            onChange={(e) => setProfileCity(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Pincode</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 400049"
+                            className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800 luxury-input rounded"
+                            value={profilePincode}
+                            onChange={(e) => setProfilePincode(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Change Password Section */}
+                    <div>
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[#B76E79] border-b pb-1.5 mb-3">Secret Security Credentials</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">New Password (leave empty to keep current)</label>
+                          <input
+                            type="password"
+                            placeholder="••••••••"
+                            className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800 luxury-input rounded"
+                            value={profilePassword}
+                            onChange={(e) => setProfilePassword(e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Confirm New Password</label>
+                          <input
+                            type="password"
+                            placeholder="••••••••"
+                            className="w-full bg-[#FAF9F6] border border-neutral-200 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800 luxury-input rounded"
+                            value={profileConfirmPassword}
+                            onChange={(e) => setProfileConfirmPassword(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <motion.button
+                        type="submit"
+                        whileHover={{ scale: 1.02, boxShadow: "0 4px 15px rgba(212, 175, 55, 0.25)" }}
+                        whileTap={{ scale: 0.98 }}
+                        className="bg-gradient-to-r from-[#AA771C] via-[#D4AF37] to-[#BF953F] text-white hover:opacity-90 shadow-lg px-6 py-3 uppercase tracking-widest font-black rounded-lg cursor-pointer transition-all inline-block"
+                      >
+                        SAVE PROFILE ATELIER UPDATES
+                      </motion.button>
+                    </div>
+                  </form>
+                </div>
 
                 {/* Dashboard active wishlist */}
                 <div className="bg-white p-6 border border-neutral-100 rounded-2xl shadow-sm">
@@ -1297,7 +1591,6 @@ export default function App() {
                       <div className="space-y-6">
                         {[1, 2].map((idx) => (
                           <div key={`skeleton-order-${idx}`} className="border border-neutral-100 rounded-2xl p-5 bg-[#FFFDFB] space-y-4 shadow-sm">
-                            {/* Header Meta Row */}
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-rose-50/50 gap-2">
                               <div className="space-y-1.5 w-full sm:w-1/3">
                                 <div className="luxury-shimmer-bg h-2 w-1/2 rounded"></div>
@@ -1312,7 +1605,6 @@ export default function App() {
                               </div>
                             </div>
                             
-                            {/* Order item row */}
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-3 rounded-xl border border-rose-50/30">
                               <div className="flex items-center gap-4 w-full">
                                 <div className="luxury-shimmer-bg w-16 h-16 rounded-lg shrink-0"></div>
@@ -1324,18 +1616,6 @@ export default function App() {
                               </div>
                               <div className="luxury-shimmer-bg h-8 w-24 rounded-lg shrink-0"></div>
                             </div>
-
-                            {/* Footer */}
-                            <div className="pt-3 border-t border-rose-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                              <div className="space-y-1 w-full sm:w-1/3">
-                                <div className="luxury-shimmer-bg h-2 w-1/4 rounded"></div>
-                                <div className="luxury-shimmer-bg h-2.5 w-full rounded mt-1"></div>
-                              </div>
-                              <div className="space-y-1 w-full sm:w-1/4 sm:text-right">
-                                <div className="luxury-shimmer-bg h-2 w-1/3 sm:ml-auto rounded"></div>
-                                <div className="luxury-shimmer-bg h-4 w-1/2 sm:ml-auto rounded mt-1"></div>
-                              </div>
-                            </div>
                           </div>
                         ))}
                       </div>
@@ -1343,7 +1623,6 @@ export default function App() {
                       ordersHistory.map((order) => (
                         <div key={order.id} className="border border-[#D4AF37]/20 rounded-2xl p-5 bg-[#FFFDFB] space-y-4 hover:border-[#D4AF37]/50 transition-all shadow-sm">
                           
-                          {/* Order Header / Meta Row */}
                           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-rose-50 gap-2">
                             <div>
                               <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">Atelier Order Reference</p>
@@ -1372,7 +1651,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Order Items List */}
                           <div className="space-y-4">
                             {order.items?.map((item, itemIdx) => (
                               <div key={itemIdx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-[#FFF9FA]/40 p-3 rounded-xl border border-rose-50 hover:bg-[#FFF9FA]/90 transition-all">
@@ -1393,7 +1671,6 @@ export default function App() {
                                   </div>
                                 </div>
                                 
-                                {/* Buy Again/Re-order trigger button */}
                                 <button
                                   onClick={() => handleReorderItem(item.product, item.selectedSize)}
                                   className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-[#D4AF37] via-[#E5A4B4] to-[#B76E79] text-white hover:opacity-90 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer shadow-sm text-center"
@@ -1404,7 +1681,6 @@ export default function App() {
                             ))}
                           </div>
 
-                          {/* Order Shipping / Tracking / Pricing Summary Foot */}
                           <div className="pt-3 border-t border-rose-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs leading-relaxed text-neutral-600">
                             <div>
                               <p className="text-[9px] font-semibold text-neutral-400 uppercase tracking-widest">Courier Coordinates</p>
@@ -1439,12 +1715,19 @@ export default function App() {
               </div>
             </div>
 
-          </div>
+          </motion.div>
         )}
 
         {/* 6. ORDER TRACKING VIEW */}
         {activeTab === 'tracking' && (
-          <div className="max-w-4xl mx-auto px-6 py-12 lg:py-16 text-[#4A1525] bg-[#FAF9F6] min-h-[85vh] animate-luxury-reveal">
+          <motion.div
+            key="tracking"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-4xl mx-auto px-6 py-12 lg:py-16 text-[#4A1525] bg-[#FAF9F6] min-h-[85vh]"
+          >
             
             <div className="text-center mb-12">
               <span className="text-[10px] uppercase tracking-[0.3em] font-black text-[#D4AF37] block mb-2">MAISON LOGISTICS AND CRAFTS</span>
@@ -1519,120 +1802,39 @@ export default function App() {
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
 
         {/* 7. AUTH LOGIN PAGE AND SECURITY */}
         {activeTab === 'auth' && (
-          <div className="max-w-md mx-auto px-6 py-16 text-[#4A1525] bg-[#FAF9F6] min-h-[75vh] flex flex-col justify-center animate-luxury-reveal">
-            <div className="bg-white border border-[#D4AF37]/25 p-8 rounded-2xl shadow-sm space-y-6">
-              
-              <div className="text-center">
-                <span className="text-2xl font-serif italic tracking-widest gold-text-gradient block font-extrabold mb-1">ANVAA MAISON</span>
-                <h3 className="text-lg font-serif italic text-[#4A1525] font-semibold uppercase tracking-widest">
-                  {isRegisterMode ? 'VIP Atelier Signup' : 'VIP Studio Entry'}
-                </h3>
-                <p className="text-[11px] text-neutral-500 mt-2 italic">
-                  Enjoy custom handloom adjustments, coordinate seasonal lookbooks, and save billing info securely.
-                </p>
-              </div>
-
-              <form onSubmit={handleAuthSubmit} className="space-y-4 text-xs font-light">
-                <div>
-                  <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Elite VIP Account Email</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="e.g. codewithvibe64@gmail.com"
-                    className="w-full bg-[#FAF9F6] border border-neutral-300 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800"
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                  />
-                </div>
-
-                {isRegisterMode && (
-                  <>
-                    <div>
-                      <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Complete Legal Name</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Vasantika Sen"
-                        className="w-full bg-[#FAF9F6] border border-neutral-300 p-3 outline-none focus:border-[#D4AF37]"
-                        value={authName}
-                        onChange={(e) => setAuthName(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-neutral-400 font-bold uppercase text-[9px] mb-1">Mobile Contact Phone Number</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. +91 99999 88888"
-                        className="w-full bg-[#FAF9F6] border border-neutral-300 p-3 outline-none focus:border-[#D4AF37] font-mono text-zinc-800"
-                        value={authPhone}
-                        onChange={(e) => setAuthPhone(e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
-
-                <button
-                  type="submit"
-                  className="w-full bg-[#4A1525] text-[#FAF9F6] py-3.5 text-xs font-black uppercase tracking-widest hover:bg-[#6A162B] transition-all cursor-pointer shadow-sm rounded-lg"
-                >
-                  {isRegisterMode ? 'REQUEST VIP ACCOUNT' : 'ENTER ATELIER'}
-                </button>
-              </form>
-
-              {/* Social login integration UI block */}
-              <div className="space-y-3.5 pt-4 border-t text-center">
-                <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Social Federated Access</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] uppercase tracking-widest font-black">
-                  <button 
-                    onClick={() => {
-                      setCurrentUser({ id: 'f_google', email: 'vibe_federated@gmail.com', name: 'Google Studio Client', role: 'customer' });
-                      alert("Authenticated via federated Google Account.");
-                      setActiveTab('home');
-                    }}
-                    className="border border-neutral-200 py-2.5 rounded hover:bg-neutral-50 flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    ✦ Google
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setCurrentUser({ id: 'f_apple', email: 'vibe_apple@apple.com', name: 'Apple VIP Client', role: 'customer' });
-                      alert("Authenticated via federated Apple Secure Account.");
-                      setActiveTab('home');
-                    }}
-                    className="border border-neutral-200 py-2.5 rounded hover:bg-neutral-50 flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    ✦ Apple VIP
-                  </button>
-                </div>
-              </div>
-
-              <div className="text-center pt-2">
-                <button
-                  onClick={() => setIsRegisterMode(!isRegisterMode)}
-                  className="text-[11px] text-[#D4AF37] hover:underline font-serif italic"
-                >
-                  {isRegisterMode ? 'Already registered with ANVAA? Login instead' : 'New to ANVAA? Request custom VIP account credentials'}
-                </button>
-              </div>
-
-            </div>
-          </div>
+          <AuthScreen
+            currentUser={currentUser}
+            setCurrentUser={setCurrentUser}
+            setActiveTab={setActiveTab}
+            showToast={showToast}
+            handleAutoLogin={handleAutoLogin}
+            setShowProfileGuide={setShowProfileGuide}
+          />
         )}
+
 
         {/* 8. ADMIN MODE INTERFACES */}
         {activeTab === 'admin' && currentUser && currentUser.role === 'admin' && (
-          <AdminPanel 
-            onRefreshProducts={fetchProducts}
-            products={products}
-            designers={designers}
-          />
+          <motion.div
+            key="admin"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <AdminPanel 
+              onRefreshProducts={fetchProducts}
+              products={products}
+              designers={designers}
+            />
+          </motion.div>
         )}
+        </AnimatePresence>
 
       </main>
 
@@ -2017,7 +2219,7 @@ export default function App() {
                   <button
                     onClick={() => {
                       if (!currentUser) {
-                        alert("Please login first to enter checkout.");
+                        showToast("Please login first to enter checkout.", 'error');
                         setIsCartOpen(false);
                         setActiveTab('auth');
                       } else {
@@ -2051,6 +2253,45 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Custom luxury toast notification system */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -50, x: "-50%", scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
+            exit={{ opacity: 0, y: -20, x: "-50%", scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            className="fixed top-8 left-1/2 -translate-x-1/2 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md border border-[#D4AF37]/35 rounded-2xl shadow-2xl p-5 flex items-start gap-4"
+          >
+            <div className={`p-2.5 rounded-xl ${
+              toast.type === 'success' ? 'bg-emerald-50 text-emerald-600' :
+              toast.type === 'error' ? 'bg-rose-50 text-rose-600' :
+              'bg-amber-50 text-amber-600'
+            }`}>
+              {toast.type === 'success' ? <Check size={18} /> :
+               toast.type === 'error' ? <ShieldAlert size={18} /> :
+               <Sparkle size={18} />}
+            </div>
+            <div className="flex-1 space-y-0.5">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#4A1525] font-sans">
+                {toast.type === 'success' ? 'Maison Success' :
+                 toast.type === 'error' ? 'Maison Alert' :
+                 'Maison Update'}
+              </h4>
+              <p className="text-[11px] text-neutral-600 leading-relaxed font-light italic font-serif">
+                {toast.message}
+              </p>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="text-neutral-400 hover:text-neutral-600 transition-colors text-[10px] uppercase font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

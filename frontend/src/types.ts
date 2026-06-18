@@ -5,10 +5,12 @@
 
 export interface User {
   id: string;
+  _id?: string;
   email: string;
   name: string;
   role: 'customer' | 'admin';
   phone?: string;
+  avatar?: string;
   savedAddresses?: Address[];
   createdAt: string;
 }
