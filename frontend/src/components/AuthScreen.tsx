@@ -69,6 +69,15 @@ export default function AuthScreen({
         setCurrentUser(data.user);
         showToast(`Successfully authenticated as ${data.user.name} via Google.`, "success");
         setActiveTab("home");
+
+        // Show update profile guide if Google user has incomplete profile details
+        const hasMissingDetails = !data.user.phone || !data.user.savedAddresses || data.user.savedAddresses.length === 0;
+        if (hasMissingDetails) {
+          setShowProfileGuide(true);
+          setTimeout(() => {
+            showToast("Please complete your details and upload a profile picture in your dashboard.", "info");
+          }, 2000);
+        }
       } else {
         showToast(data.error || "Google Sign-In failed.", "error");
       }
@@ -85,7 +94,7 @@ export default function AuthScreen({
         clearInterval(checkGoogle);
         try {
           (window as any).google.accounts.id.initialize({
-            client_id: (import.meta.env.VITE_GOOGLE_CLIENT_ID) || "1002347101859-fakeclientid.apps.googleusercontent.com",
+            client_id: ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID) || "1002347101859-fakeclientid.apps.googleusercontent.com",
             callback: handleGoogleCredential
           });
           (window as any).google.accounts.id.renderButton(
@@ -141,7 +150,8 @@ export default function AuthScreen({
         );
         setActiveTab('home');
 
-        if (isRegisterMode) {
+        const hasMissingDetails = !data.user.phone || !data.user.savedAddresses || data.user.savedAddresses.length === 0;
+        if (isRegisterMode || hasMissingDetails) {
           setShowProfileGuide(true);
           setTimeout(() => {
             showToast("Please upload your profile picture and complete address details in your profile dashboard.", "info");

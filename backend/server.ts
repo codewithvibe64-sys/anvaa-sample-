@@ -1022,14 +1022,14 @@ app.post("/api/auth/update-profile", async (req, res) => {
       user.password = await bcrypt.hash(password, salt);
     }
 
-    if (address) {
+    if (address && address.street && address.city && address.pincode) {
       const parsedAddress = {
-        name: address.name,
+        name: address.name || name || user.name,
         street: address.street,
         city: address.city,
         state: address.state || "Delhi",
         pincode: address.pincode,
-        phone: address.phone
+        phone: address.phone || phone || user.phone
       };
 
       if (!user.savedAddresses || user.savedAddresses.length === 0) {
