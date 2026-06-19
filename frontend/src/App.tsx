@@ -15,7 +15,6 @@ import { gsap } from 'gsap';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import AdminPanel from './components/AdminPanel';
 import DesignerMarketplace from './components/DesignerMarketplace';
 import ChatAtelier from './components/ChatAtelier';
 import TrackingDocketModal from './components/TrackingDocketModal';
@@ -293,6 +292,10 @@ export default function App() {
         setProfileState('Delhi');
         setProfilePincode('');
       }
+      fetchWishlist();
+    } else {
+      const local = localStorage.getItem('anvaa_wishlist');
+      setWishlist(local ? JSON.parse(local) : []);
     }
   }, [currentUser]);
 
@@ -328,10 +331,19 @@ export default function App() {
 
   const fetchWishlist = async () => {
     try {
-      const res = await fetch('/api/wishlist');
-      if (res.ok) {
-        const data = await res.json();
-        setWishlist(data);
+      if (currentUser) {
+        const res = await fetch(`/api/wishlist?userId=${currentUser._id || currentUser.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setWishlist(data);
+          return;
+        }
+      }
+      const local = localStorage.getItem('anvaa_wishlist');
+      if (local) {
+        setWishlist(JSON.parse(local));
+      } else {
+        setWishlist([]);
       }
     } catch (e) {
       console.error("Failed to load wishlist", e);
@@ -480,14 +492,28 @@ export default function App() {
   // Wishlist Actions
   const handleToggleWishlist = async (productId: string) => {
     try {
-      const res = await fetch('/api/wishlist/toggle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWishlist(data.wishlist);
+      if (currentUser) {
+        const res = await fetch('/api/wishlist/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, userId: currentUser._id || currentUser.id })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWishlist(data.wishlist);
+        }
+      } else {
+        const local = localStorage.getItem('anvaa_wishlist');
+        let currentWishlist: string[] = local ? JSON.parse(local) : [];
+        const idx = currentWishlist.indexOf(productId);
+        if (idx !== -1) {
+          currentWishlist.splice(idx, 1);
+        } else {
+          currentWishlist.push(productId);
+        }
+        localStorage.setItem('anvaa_wishlist', JSON.stringify(currentWishlist));
+        setWishlist(currentWishlist);
+        showToast("Added item to your temporary favorites. Sign in to save permanently.", "info");
       }
     } catch (err) {
       console.error("Wishlist action failed", err);
@@ -1818,22 +1844,7 @@ export default function App() {
         )}
 
 
-        {/* 8. ADMIN MODE INTERFACES */}
-        {activeTab === 'admin' && currentUser && currentUser.role === 'admin' && (
-          <motion.div
-            key="admin"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <AdminPanel 
-              onRefreshProducts={fetchProducts}
-              products={products}
-              designers={designers}
-            />
-          </motion.div>
-        )}
+
         </AnimatePresence>
 
       </main>

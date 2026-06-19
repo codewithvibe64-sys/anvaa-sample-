@@ -35,7 +35,7 @@ async function seedMongoVIPUser() {
         password: hashedPassword,
         name: "VASANTIKA SEN",
         phone: "+91 98765 43210",
-        role: "admin",
+        role: "customer",
         savedAddresses: [
           {
             name: "Vasantika Sen",
@@ -308,7 +308,7 @@ function initializeDatabase() {
       id: "user_01",
       email: "codewithvibe64@gmail.com",
       name: "Vasantika Sen",
-      role: "admin",
+      role: "customer",
       phone: "+91 98765 43210",
       savedAddresses: [
         {
@@ -513,114 +513,14 @@ app.get("/api/products/:id", (req, res) => {
   }
 });
 
-// Admin product management (Add / Update / Delete)
-app.post("/api/admin/products", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "Database not loaded" });
 
-  const newProduct = req.body;
-  if (!newProduct.id) {
-    newProduct.id = "prod_" + Date.now();
-  }
-  
-  const index = db.products.findIndex((p: any) => p.id === newProduct.id);
-  if (index !== -1) {
-    db.products[index] = { ...db.products[index], ...newProduct };
-  } else {
-    db.products.push({
-      rating: 5.0,
-      ...newProduct
-    });
-  }
-  saveDB(db);
-  res.json({ success: true, product: newProduct });
-});
-
-app.delete("/api/admin/products/:id", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "Database error" });
-  db.products = db.products.filter((p: any) => p.id !== req.params.id);
-  saveDB(db);
-  res.json({ success: true });
-});
 
 app.get("/api/designers", (req, res) => {
   const db = getDB();
   res.json(db ? db.designers : []);
 });
 
-// Admin designer management
-app.post("/api/admin/designers", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-  const designer = req.body;
-  const index = db.designers.findIndex((d: any) => d.id === designer.id);
-  if (index !== -1) {
-    db.designers[index] = { ...db.designers[index], ...designer };
-  } else {
-    db.designers.push(designer);
-  }
-  saveDB(db);
-  res.json({ success: true });
-});
 
-app.delete("/api/admin/designers/:id", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-  db.designers = db.designers.filter((d: any) => d.id !== req.params.id);
-  saveDB(db);
-  res.json({ success: true });
-});
-
-// Admin customer list & database metrics
-app.get("/api/admin/customers", async (req, res) => {
-  try {
-    const users = await User.find({}).select("-password");
-    res.json(users);
-  } catch (err: any) {
-    console.error("Fetch customers error:", err);
-    res.status(500).json({ error: "Failed to fetch customers" });
-  }
-});
-
-app.get("/api/admin/analytics", async (req, res) => {
-  try {
-    const db = getDB();
-    if (!db) return res.status(500).json({ error: "DB load failure" });
-
-    const mongoOrders = await Order.find({});
-    const totalSales = mongoOrders.reduce((acc: number, o: any) => acc + (o.status !== "Cancelled" ? o.total : 0), 0);
-    const totalOrders = mongoOrders.length;
-    const orderCountByStatus = mongoOrders.reduce((acc: any, o: any) => {
-      acc[o.status] = (acc[o.status] || 0) + 1;
-      return acc;
-    }, {});
-
-    const revenueByCategory = mongoOrders.reduce((acc: any, o: any) => {
-      o.items?.forEach((item: any) => {
-        const cat = item.product.category;
-        acc[cat] = (acc[cat] || 0) + (item.product.price * item.quantity);
-      });
-      return acc;
-    }, {});
-
-    const mongoUsersCount = await User.countDocuments({});
-
-    res.json({
-      totalSales,
-      totalOrders,
-      orderCountByStatus,
-      revenueByCategory,
-      productsCount: db.products.length,
-      designersCount: db.designers.length,
-      usersCount: mongoUsersCount,
-      consultationsCount: db.consultations.length
-    });
-  } catch (err: any) {
-    console.error("Analytics error:", err);
-    res.status(500).json({ error: "Analytics load failure" });
-  }
-});
 
 // POST Review
 app.post("/api/products/:id/review", (req, res) => {
@@ -756,26 +656,7 @@ No markdown or emojis that feel cheap. Use only premium typography phrasing.
   res.json(thread);
 });
 
-// Admin message reply from general backend
-app.post("/api/admin/chats/reply", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB Error" });
-  const { threadId, content } = req.body;
-  const thread = db.chats.find((c: any) => c.id === threadId);
-  if (thread) {
-    thread.messages.push({
-      id: "msg_" + Date.now(),
-      sender: "designer",
-      content,
-      timestamp: new Date().toISOString()
-    });
-    thread.lastUpdated = new Date().toISOString();
-    saveDB(db);
-    res.json(thread);
-  } else {
-    res.status(404).json({ error: "Chat thread not found" });
-  }
-});
+
 
 // Consultations
 app.get("/api/consultations/:userId", (req, res) => {
@@ -785,26 +666,7 @@ app.get("/api/consultations/:userId", (req, res) => {
   res.json(userConsultations);
 });
 
-// Admin consultations list
-app.get("/api/admin/consultations", (req, res) => {
-  const db = getDB();
-  res.json(db ? db.consultations : []);
-});
 
-// Update consultation status (Admin / Designer)
-app.post("/api/admin/consultations/status", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
-  const { consultationId, status } = req.body;
-  const index = db.consultations.findIndex((c: any) => c.id === consultationId);
-  if (index !== -1) {
-    db.consultations[index].status = status;
-    saveDB(db);
-    res.json({ success: true, consultation: db.consultations[index] });
-  } else {
-    res.status(404).json({ error: "Consultation not found" });
-  }
-});
 
 app.post("/api/consultations", (req, res) => {
   const db = getDB();
@@ -856,27 +718,48 @@ app.post("/api/consultations", (req, res) => {
 });
 
 // Wishlists
-app.get("/api/wishlist", (req, res) => {
-  const db = getDB();
-  res.json(db ? db.wishlist || [] : []);
+app.get("/api/wishlist", async (req, res) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res.json([]);
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.json([]);
+    }
+    res.json(user.wishlist || []);
+  } catch (err) {
+    console.error("Fetch wishlist error:", err);
+    res.status(500).json({ error: "Failed to fetch wishlist." });
+  }
 });
 
-app.post("/api/wishlist/toggle", (req, res) => {
-  const db = getDB();
-  if (!db) return res.status(500).json({ error: "DB error" });
+app.post("/api/wishlist/toggle", async (req, res) => {
+  try {
+    const { productId, userId } = req.body;
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required." });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
-  const { productId } = req.body;
-  if (!db.wishlist) db.wishlist = [];
+    if (!user.wishlist) user.wishlist = [];
+    const idx = user.wishlist.indexOf(productId);
+    if (idx !== -1) {
+      user.wishlist.splice(idx, 1);
+    } else {
+      user.wishlist.push(productId);
+    }
+    await user.save();
 
-  const idx = db.wishlist.indexOf(productId);
-  if (idx !== -1) {
-    db.wishlist.splice(idx, 1);
-  } else {
-    db.wishlist.push(productId);
+    res.json({ success: true, wishlist: user.wishlist });
+  } catch (err) {
+    console.error("Toggle wishlist error:", err);
+    res.status(500).json({ error: "Failed to toggle wishlist." });
   }
-
-  saveDB(db);
-  res.json({ success: true, wishlist: db.wishlist });
 });
 
 // Authentication (Stateful MongoDB database integration)
@@ -902,7 +785,7 @@ app.post("/api/auth/register", async (req, res) => {
       name,
       phone: phone || "",
       avatar: "",
-      role: email.toLowerCase().includes("admin") || email.toLowerCase() === "codewithvibe64@gmail.com" ? "admin" : "customer",
+      role: "customer",
       savedAddresses: []
     });
 
@@ -977,7 +860,7 @@ app.post("/api/auth/google", async (req, res) => {
         name: name || "Google User",
         phone: "",
         avatar: picture || "",
-        role: email.toLowerCase() === "codewithvibe64@gmail.com" ? "admin" : "customer",
+        role: "customer",
         savedAddresses: []
       });
       await user.save();
@@ -1109,59 +992,7 @@ app.get("/api/orders/user/:userId", async (req, res) => {
   }
 });
 
-// Admin orders endpoint
-app.get("/api/admin/orders", async (req, res) => {
-  try {
-    const orders = await Order.find({}).sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (err: any) {
-    console.error("Fetch admin orders error:", err);
-    res.status(500).json({ error: "Failed to fetch admin orders." });
-  }
-});
 
-// Admin order status update
-app.post("/api/admin/orders/status", async (req, res) => {
-  try {
-    const { orderId, status } = req.body;
-    const order = await Order.findOne({ id: orderId });
-    if (!order) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-    order.status = status;
-    
-    // Push updates to tracking timeline
-    const timelineDesc = {
-      "Order Placed": "Your exclusive order has been received at the central salon.",
-      "In Crafting": "Our artisans have commenced precise weaving and tailoring of your size.",
-      "Quality Check": "Your garments are going through standard and micro inspection for fit and quality.",
-      "Dispatched": "Your luxury order is packaged in premium ANVAA boxes and handed over to elite transit partners.",
-      "Out for Delivery": "The delivery agent is arriving with secure handover instructions.",
-      "Delivered": "Handed over safely to the premium member. Thank you for your confidence in ANVAA."
-    };
-
-    const targetMsg = timelineDesc[status as keyof typeof timelineDesc] || `Status updated to ${status}.`;
-    
-    // Set matching tracking timeline events to done
-    const statuses = ["Order Placed", "In Crafting", "Quality Check", "Dispatched", "Out for Delivery", "Delivered"];
-    const currentIdx = statuses.indexOf(status);
-
-    order.trackingTimeline.forEach((item: any) => {
-      const itemIdx = statuses.indexOf(item.status);
-      if (itemIdx <= currentIdx) {
-        item.done = true;
-        item.date = new Date().toLocaleString();
-      }
-    });
-
-    await order.save();
-    res.json({ success: true, order });
-  } catch (err: any) {
-    console.error("Admin order status update error:", err);
-    res.status(500).json({ error: "Failed to update order status." });
-  }
-});
 
 app.post("/api/orders", async (req, res) => {
   try {

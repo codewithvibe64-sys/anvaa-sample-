@@ -136,24 +136,7 @@ export default function Navbar({
                 )}
               </motion.button>
               
-              {currentUser.role === 'admin' && (
-                <motion.button
-                  onClick={() => setActiveTab('admin')}
-                  whileHover={{ scale: 1.06, y: -1 }}
-                  whileTap={{ scale: 0.96 }}
-                  className={`py-2 px-3 bg-[#4A1525] text-white border border-[#4A1525] rounded-xl hover:opacity-90 transition-colors flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'admin' ? 'ring-2 ring-[#D4AF37]' : ''
-                  }`}
-                >
-                  <motion.div
-                    whileHover={{ rotate: -15 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Shield size={13} className="text-[#D4AF37]" />
-                  </motion.div>
-                  <span className="hidden md:inline">Admin Mode</span>
-                </motion.button>
-              )}
+
               
               <motion.button 
                 onClick={onLogout}
