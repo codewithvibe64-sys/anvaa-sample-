@@ -210,7 +210,10 @@ export default function App() {
   const [designers, setDesigners] = useState<Designer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const savedUser = localStorage.getItem('anvaa_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   
   // Modals & Active Selections
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -296,6 +299,14 @@ export default function App() {
     } else {
       const local = localStorage.getItem('anvaa_wishlist');
       setWishlist(local ? JSON.parse(local) : []);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('anvaa_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('anvaa_user');
     }
   }, [currentUser]);
 

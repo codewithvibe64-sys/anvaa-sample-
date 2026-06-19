@@ -463,7 +463,7 @@ function initializeDatabase() {
         date: "2026-05-12"
       }
     ],
-    wishlist: ["prod_wedding_01", "prod_office_01"]
+    wishlist: []
   };
 
   try {
