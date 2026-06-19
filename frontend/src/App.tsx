@@ -15,6 +15,7 @@ import { gsap } from 'gsap';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import PageTransition from './components/PageTransition';
 import DesignerMarketplace from './components/DesignerMarketplace';
 import ChatAtelier from './components/ChatAtelier';
 import TrackingDocketModal from './components/TrackingDocketModal';
@@ -192,7 +193,37 @@ export default function App() {
     restDelta: 0.001
   });
 
-  const [activeTab, setActiveTab] = useState<string>('auth');
+  const [activeTab, rawSetActiveTab] = useState<string>(() => {
+    const savedTab = localStorage.getItem('anvaa_active_tab');
+    if (savedTab) {
+      const savedUser = localStorage.getItem('anvaa_user');
+      if (!savedUser && (savedTab === 'dashboard' || savedTab === 'admin')) {
+        return 'auth';
+      }
+      return savedTab;
+    }
+    return 'home';
+  });
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionTab, setTransitionTab] = useState<string>(() => {
+    const savedTab = localStorage.getItem('anvaa_active_tab');
+    return savedTab || 'home';
+  });
+
+  const setActiveTab = (tab: string) => {
+    if (tab === activeTab) return;
+    setTransitionTab(tab);
+    setIsTransitioning(true);
+
+    setTimeout(() => {
+      rawSetActiveTab(tab);
+    }, 850);
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 1750);
+  };
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -205,6 +236,10 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  useEffect(() => {
+    localStorage.setItem('anvaa_active_tab', activeTab);
+  }, [activeTab]);
   const [customColorMood, setCustomColorMood] = useState<string>('gold');
   const [products, setProducts] = useState<Product[]>([]);
   const [designers, setDesigners] = useState<Designer[]>([]);
@@ -2312,6 +2347,13 @@ export default function App() {
               ✕
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Page transition overlay */}
+      <AnimatePresence mode="wait">
+        {isTransitioning && (
+          <PageTransition key="transition-overlay" isVisible={isTransitioning} destinationTab={transitionTab} />
         )}
       </AnimatePresence>
 
