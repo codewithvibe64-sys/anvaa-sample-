@@ -10,7 +10,7 @@ import {
   Clock, MapPin, Smile, MessageSquare, ChevronDown, CheckCircle, 
   CreditCard, Loader2, Sparkle, UserCheck, Shield, Camera, User
 } from 'lucide-react';
-import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
+import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'motion/react';
 import { gsap } from 'gsap';
 
 import Navbar from './components/Navbar';
@@ -225,6 +225,19 @@ export default function App() {
     }, 1750);
   };
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Parallax Scroll Refs & Hooks
+  const weddingSpotlightRef = React.useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll();
+  const yHero = useTransform(scrollY, [0, 800], ["0px", "200px"]);
+
+  const { scrollYProgress: weddingScrollProgress } = useScroll({
+    target: weddingSpotlightRef,
+    offset: ["start end", "end start"]
+  });
+
+  const yParallaxImage1 = useTransform(weddingScrollProgress, [0, 1], ["-60px", "60px"]);
+  const yParallaxImage2 = useTransform(weddingScrollProgress, [0, 1], ["60px", "-60px"]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
@@ -776,7 +789,13 @@ export default function App() {
             
             {/* FULLSCREEN HERO METROPOLIS */}
             <section className="relative h-[90vh] bg-[#FFFBFB] text-[#4A1525] flex items-center overflow-hidden border-b border-[#D4AF37]/25">
-              <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-multiply scale-105 transition-all duration-[10s]" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1600')" }}></div>
+              <motion.div 
+                style={{ 
+                  backgroundImage: "url('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=1600')",
+                  y: yHero
+                }}
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 mix-blend-multiply scale-110 pointer-events-none"
+              />
               <div className="absolute inset-0 bg-gradient-to-r from-[#FFFBFB] via-[#FFFBFB]/90 to-transparent"></div>
               
               <div className="max-w-7xl mx-auto px-6 lg:px-12 w-full z-10 relative grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -901,6 +920,7 @@ export default function App() {
 
             {/* HOVER PARALLAX STYLE ACCENT SPLIT: WEDDING FEATURE */}
             <motion.section 
+              ref={weddingSpotlightRef}
               className="bg-[#FAF9F6] border-y border-[#D4AF37]/20 py-20 px-6 lg:px-12"
               initial={{ opacity: 0, y: 60 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -939,22 +959,20 @@ export default function App() {
                 </div>
 
                 <div className="lg:col-span-7 grid grid-cols-2 gap-4">
-                  <motion.img 
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600" 
-                    className="w-full h-[400px] object-cover rounded-xl shadow-lg border border-[#F5E6D3]" 
-                  />
-                  <motion.img 
-                    initial={{ opacity: 0, y: 60 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
-                    src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600" 
-                    className="w-full h-[400px] object-cover rounded-xl mt-8 shadow-lg border border-[#F5E6D3]" 
-                  />
+                  <div className="w-full h-[400px] overflow-hidden rounded-xl shadow-lg border border-[#F5E6D3] relative bg-neutral-100">
+                    <motion.img 
+                      style={{ y: yParallaxImage1 }}
+                      src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=600" 
+                      className="w-full h-[130%] object-cover absolute inset-x-0 -top-[15%] pointer-events-none" 
+                    />
+                  </div>
+                  <div className="w-full h-[400px] overflow-hidden rounded-xl mt-8 shadow-lg border border-[#F5E6D3] relative bg-neutral-100">
+                    <motion.img 
+                      style={{ y: yParallaxImage2 }}
+                      src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=600" 
+                      className="w-full h-[130%] object-cover absolute inset-x-0 -top-[15%] pointer-events-none" 
+                    />
+                  </div>
                 </div>
               </div>
             </motion.section>
