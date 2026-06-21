@@ -36,6 +36,7 @@ async function seedMongoVIPUser() {
         name: "VASANTIKA SEN",
         phone: "+91 98765 43210",
         role: "customer",
+        wishlist: [],
         savedAddresses: [
           {
             name: "Vasantika Sen",
@@ -49,6 +50,12 @@ async function seedMongoVIPUser() {
       });
       await vipUser.save();
       console.log("VIP User seeded successfully in MongoDB Atlas.");
+    } else {
+      // Force reset role and empty wishlist in the DB for clean verification
+      existing.role = "customer";
+      existing.wishlist = [];
+      await existing.save();
+      console.log("VIP User wishlist and role reset in MongoDB Atlas.");
     }
   } catch (err) {
     console.error("Error seeding VIP User in MongoDB:", err);

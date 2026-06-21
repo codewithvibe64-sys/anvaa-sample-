@@ -74,6 +74,7 @@ export interface CartItem {
   product: Product;
   quantity: number;
   selectedSize: string;
+  customMeasurements?: string;
 }
 
 export interface Payment {

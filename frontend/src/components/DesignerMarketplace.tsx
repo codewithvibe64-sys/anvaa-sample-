@@ -47,6 +47,14 @@ export default function DesignerMarketplace({
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  if (designers.length === 0) {
+    return (
+      <div className={`text-center py-20 ${theme.bg} ${theme.text}`}>
+        <p className={`italic ${theme.textMuted} font-serif`}>No elite designers are currently online. Please check back later.</p>
+      </div>
+    );
+  }
+
   const activeDesigner = selectedDesigner || designers[0];
 
   const designerProducts = products.filter(p => p.designerId === activeDesigner?.id);
@@ -85,14 +93,6 @@ export default function DesignerMarketplace({
       }, 5000);
     }
   };
-
-  if (designers.length === 0) {
-    return (
-      <div className={`text-center py-20 ${theme.bg} ${theme.text}`}>
-        <p className={`italic ${theme.textMuted} font-serif`}>No elite designers are currently online. Please check back later.</p>
-      </div>
-    );
-  }
 
   return (
     <div className={`${theme.bg} ${theme.text} min-h-screen py-10 lg:py-16`}>

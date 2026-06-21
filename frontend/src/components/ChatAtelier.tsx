@@ -134,6 +134,17 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
     );
   }
 
+  if (!activeDesigner) {
+    return (
+      <div className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16 text-[#4A1525] bg-[#FAF9F6] min-h-[80vh] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <RefreshCw size={24} className="animate-spin mx-auto text-[#D4AF37]" />
+          <p className="text-xs uppercase tracking-widest text-[#B76E79] font-mono">Initializing Atelier Channels...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16 text-[#4A1525] bg-[#FAF9F6] min-h-[80vh]">
       

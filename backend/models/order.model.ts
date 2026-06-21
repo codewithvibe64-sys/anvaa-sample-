@@ -9,7 +9,8 @@ const OrderItemSchema = new mongoose.Schema({
     images: [{ type: String }]
   },
   quantity: { type: Number, required: true },
-  size: { type: String, default: 'M' }
+  size: { type: String, default: 'M' },
+  customMeasurements: { type: String, default: '' }
 });
 
 const TrackingTimelineSchema = new mongoose.Schema({

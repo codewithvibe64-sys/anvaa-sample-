@@ -205,26 +205,53 @@ export default function App() {
     return 'home';
   });
 
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(() => {
+    const recentlySwitched = sessionStorage.getItem('anvaa_just_switched');
+    return recentlySwitched === 'true';
+  });
   const [transitionTab, setTransitionTab] = useState<string>(() => {
     const savedTab = localStorage.getItem('anvaa_active_tab');
     return savedTab || 'home';
   });
 
+  useEffect(() => {
+    if (isTransitioning) {
+      sessionStorage.removeItem('anvaa_just_switched');
+      const timer = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 900);
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning]);
+
   const setActiveTab = (tab: string) => {
     if (tab === activeTab) return;
+    localStorage.setItem('anvaa_active_tab', tab);
+    sessionStorage.setItem('anvaa_just_switched', 'true');
     setTransitionTab(tab);
     setIsTransitioning(true);
 
     setTimeout(() => {
-      rawSetActiveTab(tab);
+      window.location.reload();
     }, 850);
-
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 1750);
   };
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  // Video Atelier Showcase States
+  const [videoSelectedSize, setVideoSelectedSize] = useState<string>('M');
+  const [videoCustomNotes, setVideoCustomNotes] = useState<string>('');
+  const [videoCarouselIdx, setVideoCarouselIdx] = useState<number>(0);
+  const videoImageParallaxRef = React.useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress: videoImageScrollProgress } = useScroll({
+    target: videoImageParallaxRef,
+    offset: ["start end", "end start"]
+  });
+
+  const yLeftCol = useTransform(videoImageScrollProgress, [0, 1], ["-40px", "40px"]);
+  const yRightCol = useTransform(videoImageScrollProgress, [0, 1], ["40px", "-40px"]);
+  const scaleCenter = useTransform(videoImageScrollProgress, [0, 1], [0.98, 1.12]);
+  const rotateCenter = useTransform(videoImageScrollProgress, [0, 1], [-2, 2]);
 
   // Parallax Scroll Refs & Hooks
   const weddingSpotlightRef = React.useRef<HTMLDivElement>(null);
@@ -256,7 +283,14 @@ export default function App() {
   const [customColorMood, setCustomColorMood] = useState<string>('gold');
   const [products, setProducts] = useState<Product[]>([]);
   const [designers, setDesigners] = useState<Designer[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const savedCart = localStorage.getItem('anvaa_cart');
+    return savedCart ? JSON.parse(savedCart) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('anvaa_cart', JSON.stringify(cart));
+  }, [cart]);
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(() => {
     const savedUser = localStorage.getItem('anvaa_user');
@@ -424,24 +458,68 @@ export default function App() {
     if (activeTab === 'dashboard') {
       setShowProfileGuide(false);
     }
+    
+    // Auto-refresh states and video when moving to video-detail page
+    if (activeTab === 'video-detail') {
+      setVideoSelectedSize('M');
+      setVideoCustomNotes('');
+      setTimeout(() => {
+        const videoEl = document.querySelector('video') as HTMLVideoElement;
+        if (videoEl) {
+          videoEl.currentTime = 0;
+          videoEl.play().catch(() => {});
+        }
+      }, 50);
+    }
+
     if (activeTab === 'home') {
-      // Elegant staggering reveal of the title header
-      gsap.fromTo('.gsap-hero-title', 
-        { opacity: 0, y: 70, skewY: 5 }, 
-        { opacity: 1, y: 0, skewY: 0, duration: 1.2, ease: "power4.out", delay: 0.1 }
-      );
-      // Fade in staggers for remaining text / buttons
-      gsap.fromTo('.gsap-hero-fade', 
-        { opacity: 0, y: 30 }, 
-        { opacity: 1, y: 0, duration: 1.0, stagger: 0.15, ease: "power3.out", delay: 0.4 }
-      );
-      // Floating card effect
-      gsap.fromTo('.gsap-floating-card',
-        { y: 15 },
-        { y: -15, duration: 3, repeat: -1, yoyo: true, ease: "sine.inOut" }
-      );
+      // Small delay to ensure the elements are mounted in the DOM after tab transition
+      setTimeout(() => {
+        if (document.querySelector('.gsap-hero-title')) {
+          gsap.fromTo('.gsap-hero-title', 
+            { opacity: 0, y: 70, skewY: 5 }, 
+            { opacity: 1, y: 0, skewY: 0, duration: 1.2, ease: "power4.out", delay: 0.1 }
+          );
+        }
+        if (document.querySelector('.gsap-hero-fade')) {
+          gsap.fromTo('.gsap-hero-fade', 
+            { opacity: 0, y: 30 }, 
+            { opacity: 1, y: 0, duration: 1.0, stagger: 0.15, ease: "power3.out", delay: 0.4 }
+          );
+        }
+        if (document.querySelector('.gsap-floating-card')) {
+          gsap.fromTo('.gsap-floating-card',
+            { y: 15 },
+            { y: -15, duration: 3, repeat: -1, yoyo: true, ease: "sine.inOut" }
+          );
+        }
+      }, 100);
     }
   }, [activeTab]);
+
+  // Programmatically force autoplay and muting of all video elements on tab or carousel index change
+  useEffect(() => {
+    const forceAutoplay = () => {
+      const videos = document.querySelectorAll('video');
+      videos.forEach(video => {
+        video.muted = true;
+        video.playsInline = true;
+        
+        // Force play
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.log("Autoplay was prevented by browser, waiting for user click.", error);
+          });
+        }
+      });
+    };
+
+    // Run immediately and after a short timeout to let transitions complete
+    forceAutoplay();
+    const timer = setTimeout(forceAutoplay, 150);
+    return () => clearTimeout(timer);
+  }, [activeTab, videoCarouselIdx]);
 
   const handleAutoLogin = async () => {
     try {
@@ -580,16 +658,16 @@ export default function App() {
   };
 
   // Cart Actions
-  const handleAddToCart = (product: Product, size: string) => {
-    const existing = cart.find(item => item.product.id === product.id && item.selectedSize === size);
+  const handleAddToCart = (product: Product, size: string, customMeasurements?: string) => {
+    const existing = cart.find(item => item.product.id === product.id && item.selectedSize === size && item.customMeasurements === customMeasurements);
     if (existing) {
       setCart(cart.map(item => 
-        (item.product.id === product.id && item.selectedSize === size)
+        (item.product.id === product.id && item.selectedSize === size && item.customMeasurements === customMeasurements)
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ));
     } else {
-      setCart([...cart, { product, quantity: 1, selectedSize: size }]);
+      setCart([...cart, { product, quantity: 1, selectedSize: size, customMeasurements }]);
     }
     // Animated trigger effect
     setIsCartOpen(true);
@@ -599,20 +677,20 @@ export default function App() {
     handleAddToCart(product, size || 'M');
   };
 
-  const handleUpdateCartQty = (productId: string, size: string, qty: number) => {
+  const handleUpdateCartQty = (productId: string, size: string, qty: number, customMeasurements?: string) => {
     if (qty <= 0) {
-      setCart(cart.filter(item => !(item.product.id === productId && item.selectedSize === size)));
+      setCart(cart.filter(item => !(item.product.id === productId && item.selectedSize === size && item.customMeasurements === customMeasurements)));
     } else {
       setCart(cart.map(item => 
-        (item.product.id === productId && item.selectedSize === size)
+        (item.product.id === productId && item.selectedSize === size && item.customMeasurements === customMeasurements)
           ? { ...item, quantity: qty }
           : item
       ));
     }
   };
 
-  const handleRemoveCartItem = (productId: string, size: string) => {
-    setCart(cart.filter(item => !(item.product.id === productId && item.selectedSize === size)));
+  const handleRemoveCartItem = (productId: string, size: string, customMeasurements?: string) => {
+    setCart(cart.filter(item => !(item.product.id === productId && item.selectedSize === size && item.customMeasurements === customMeasurements)));
   };
 
   // Checkout Calculations
@@ -918,6 +996,81 @@ export default function App() {
               </motion.div>
             </section>
 
+            {/* PRIVILEGE WARDROBE REDUCTIONS OFFERS */}
+            <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 border-t border-[#D4AF37]/15">
+              <motion.div 
+                className="text-center md:text-left mb-12"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.8 }}
+              >
+                <span className="text-[10px] uppercase tracking-[0.3em] font-black text-[#D4AF37] block mb-2">PRIVILEGE ATELIER</span>
+                <h2 className={`text-3xl lg:text-4xl font-serif italic ${theme.text}`}>Wardrobe Reductions</h2>
+              </motion.div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[
+                  { id: 'prod_wedding_01', offerPrice: 148000, discountLabel: '20% OFF' },
+                  { id: 'prod_wedding_02', offerPrice: 100000, discountLabel: '20% OFF' },
+                  { id: 'prod_office_01', offerPrice: 33600, discountLabel: '20% OFF' },
+                  { id: 'prod_designer_01', offerPrice: 128000, discountLabel: '20% OFF' }
+                ].map((item) => {
+                  const prod = products.find(p => p.id === item.id);
+                  if (!prod) return null;
+                  return (
+                    <motion.div 
+                      key={item.id}
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.6 }}
+                      className="group relative bg-white border border-[#D4AF37]/15 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                    >
+                      {/* Discount tag */}
+                      <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-[#BF953F] to-[#AA771C] text-[#4A1525] text-[8px] font-black tracking-widest px-2.5 py-1 uppercase rounded shadow">
+                        {item.discountLabel}
+                      </div>
+
+                      <div className="h-72 w-full overflow-hidden relative bg-neutral-100">
+                        <img 
+                          src={prod.images?.[0]} 
+                          alt={prod.name} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
+                        />
+                        <div className="absolute inset-0 bg-[#4A1525]/5 group-hover:bg-transparent transition-colors"></div>
+                      </div>
+
+                      <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
+                        <div>
+                          <span className="text-[9px] font-mono text-[#B76E79] uppercase tracking-wider block mb-1">{prod.category}</span>
+                          <h3 className="font-serif italic text-base font-bold text-[#4A1525] line-clamp-1">{prod.name}</h3>
+                          <p className="text-[11px] text-neutral-500 font-light mt-1 line-clamp-2">{prod.description}</p>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                          <div>
+                            <span className="text-[10px] text-neutral-400 line-through block font-mono">₹{prod.price.toLocaleString('en-IN')}</span>
+                            <span className="text-sm font-extrabold text-[#D4AF37] font-mono">₹{item.offerPrice.toLocaleString('en-IN')}</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const discountedProd = { ...prod, price: item.offerPrice };
+                              handleAddToCart(discountedProd, prod.sizes?.[0] || 'M');
+                              showToast(`${prod.name} (Promo Offer) added to your selection bag.`, 'success');
+                            }}
+                            className={`${theme.buttonPrimary} text-[9px] font-bold uppercase tracking-widest px-3 py-2 rounded transition-all duration-300`}
+                          >
+                            Add to Bag
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </section>
+
             {/* HOVER PARALLAX STYLE ACCENT SPLIT: WEDDING FEATURE */}
             <motion.section 
               ref={weddingSpotlightRef}
@@ -976,6 +1129,130 @@ export default function App() {
                 </div>
               </div>
             </motion.section>
+
+            {/* MAISON MOTION ATELIER: VIDEO CAROUSEL SHOWCASE */}
+            <motion.section 
+              className="max-w-7xl mx-auto px-6 lg:px-12 py-16 border-y border-[#D4AF37]/15 bg-[#FAF9F6]/50"
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-60px" }}
+              transition={{ duration: 0.8 }}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                {/* Left Side: Video Player with Slider Buttons */}
+                <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-[#D4AF37]/25 shadow-xl aspect-[4/5] bg-black group">
+                  <AnimatePresence mode="wait">
+                    <motion.video 
+                      key={videoCarouselIdx}
+                      src={[
+                        'https://assets.mixkit.co/videos/805/805-360.mp4',
+                        'https://assets.mixkit.co/videos/809/809-360.mp4',
+                        'https://assets.mixkit.co/videos/50641/50641-360.mp4'
+                      ][videoCarouselIdx]}
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.5 }}
+                    />
+                  </AnimatePresence>
+
+                  {/* Left & Right slider buttons */}
+                  <button 
+                    onClick={() => setVideoCarouselIdx(prev => (prev === 0 ? 2 : prev - 1))}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-[#4A1525]/90 text-white border border-white/20 p-3 rounded-full cursor-pointer transition-all duration-300 z-10 hover:scale-110"
+                    title="Previous Video"
+                  >
+                    ←
+                  </button>
+                  <button 
+                    onClick={() => setVideoCarouselIdx(prev => (prev === 2 ? 0 : prev + 1))}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-[#4A1525]/90 text-white border border-white/20 p-3 rounded-full cursor-pointer transition-all duration-300 z-10 hover:scale-110"
+                    title="Next Video"
+                  >
+                    →
+                  </button>
+
+                  {/* Floating badges overlay */}
+                  <div className="absolute bottom-6 left-6 right-6 flex justify-between items-center pointer-events-none z-10">
+                    <span className="bg-black/60 backdrop-blur-md text-white text-[9px] font-mono tracking-widest px-3 py-1.5 uppercase rounded-full border border-white/10">
+                      Showcase Video {videoCarouselIdx + 1} of 3
+                    </span>
+                    <span className="bg-[#4A1525]/95 text-white text-[9px] font-bold tracking-wider px-3.5 py-1.5 uppercase rounded-full border border-[#D4AF37]/35 shadow">
+                      Live Motion
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Side: Details without sizes */}
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="space-y-2">
+                    <span className="text-[10px] id-section uppercase tracking-[0.3em] font-black text-[#B76E79] block">MAISON MOTION ATELIER</span>
+                    <h2 className="text-3xl font-serif italic text-[#4A1525] font-extrabold tracking-tight">
+                      {[
+                        'The Crimson Empress Cape Gown',
+                        'The Gilded Marigold Lehenga',
+                        'The Ivory Power Crepe Blazer Suit'
+                      ][videoCarouselIdx]}
+                    </h2>
+                    <p className="text-xs text-[#D4AF37] font-serif italic">
+                      Designed by Master {[
+                        'Aditi Deshmukh',
+                        'Aditi Deshmukh',
+                        'Meera Khanna'
+                      ][videoCarouselIdx]}
+                    </p>
+                  </div>
+
+                  <p className="text-xs font-light leading-relaxed text-neutral-600 font-serif italic">
+                    {[
+                      'Woven from pure heavy hand-loomed mulberry silk, and featuring an over-the-shoulder Crimson Silk organza cape decorated with hand-embroidered motif beads.',
+                      'A breathtaking bridal lehenga woven in rich Banarasi silk, featuring meticulous hand-embroidered zardozi work, gold plated threads, and hand-stitched sequin borders.',
+                      'A tailored double-breasted power blazer paired with matching straight-leg trousers. Crafted with Italian luxury crepe, structured shoulder pads, and gold accents.'
+                    ][videoCarouselIdx]}
+                  </p>
+
+                  <div className="flex items-center gap-4 py-2 border-y border-neutral-100">
+                    <div>
+                      <span className="text-[10px] text-neutral-400 line-through block font-mono">
+                        Original Price: ₹{[
+                          '1,60,000',
+                          '1,85,000',
+                          '42,000'
+                        ][videoCarouselIdx]}
+                      </span>
+                      <span className="text-xl font-extrabold text-[#D4AF37] font-mono">
+                        Atelier Offer: ₹{[
+                          '1,28,000',
+                          '1,48,000',
+                          '33,600'
+                        ][videoCarouselIdx]}
+                      </span>
+                    </div>
+                    <span className="bg-emerald-50 text-emerald-800 text-[9px] font-black tracking-widest px-2.5 py-1 uppercase rounded border border-emerald-200">
+                      20% Saving
+                    </span>
+                  </div>
+
+                  <div className="pt-4">
+                    <button
+                      onClick={() => setActiveTab('video-detail')}
+                      className={`${theme.buttonPrimary} w-full py-4 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer rounded-lg flex items-center justify-center gap-2`}
+                    >
+                      <span>Explore & Custom Fit Gown</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.section>
+
+
 
             {/* TRENDING ITEMS CAROUSEL */}
             <motion.section 
@@ -1153,6 +1430,256 @@ export default function App() {
 
             </motion.div>
           )}
+
+        {/* VIDEO DETAIL PAGE */}
+        {activeTab === 'video-detail' && (
+          <motion.div
+            key="video-detail"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16"
+          >
+            {/* Elegant Header with Back Button */}
+            <div className="flex items-center gap-4 mb-10 border-b border-[#D4AF37]/25 pb-4">
+              <button 
+                onClick={() => setActiveTab('home')}
+                className="flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-[#B76E79] hover:text-[#4A1525] transition-all cursor-pointer bg-white px-4 py-2 border rounded-full hover:bg-neutral-50 shadow-sm"
+              >
+                ← Back to Home
+              </button>
+              <span className="text-xs font-mono text-neutral-400">|</span>
+              <span className="text-xs uppercase tracking-widest font-black text-[#D4AF37]">
+                Maison Fitting Room
+              </span>
+            </div>
+
+            {/* Video Detail Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+              {/* Left Side: Loop Video */}
+              <div className="lg:col-span-6 relative rounded-2xl overflow-hidden border border-[#D4AF37]/25 shadow-xl aspect-[4/5] bg-black">
+                <video 
+                  src={[
+                    'https://assets.mixkit.co/videos/805/805-360.mp4',
+                    'https://assets.mixkit.co/videos/809/809-360.mp4',
+                    'https://assets.mixkit.co/videos/50641/50641-360.mp4'
+                  ][videoCarouselIdx]}
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline 
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute bottom-6 left-6 bg-black/60 backdrop-blur-md text-white text-[9px] font-mono tracking-widest px-3 py-1.5 uppercase rounded-full border border-white/10">
+                  Interactive Fitting Feed • Active Motion Loop
+                </div>
+              </div>
+
+              {/* Right Side: Configuration & Sizing Details */}
+              <div className="lg:col-span-6 space-y-6 bg-white p-8 rounded-2xl border border-neutral-100 shadow-sm">
+                <div className="space-y-2">
+                  <span className="text-[10px] uppercase tracking-[0.3em] font-black text-[#B76E79] block">
+                    COUTURE CUSTOMIZATION
+                  </span>
+                  <h2 className="text-3xl font-serif italic text-[#4A1525] font-extrabold tracking-tight">
+                    {[
+                      'The Crimson Empress Cape Gown',
+                      'The Gilded Marigold Lehenga',
+                      'The Ivory Power Crepe Blazer Suit'
+                    ][videoCarouselIdx]}
+                  </h2>
+                  <p className="text-xs text-[#D4AF37] font-serif italic">
+                    Live-Motion Atelier Fit • Masterfully Designed
+                  </p>
+                </div>
+
+                <p className="text-xs font-light leading-relaxed text-neutral-600 font-serif italic">
+                  {[
+                    'Woven from pure heavy hand-loomed mulberry silk, and featuring an over-the-shoulder Crimson Silk organza cape decorated with hand-embroinded motif beads.',
+                    'A breathtaking bridal lehenga woven in rich Banarasi silk, featuring meticulous hand-embroidered zardozi work, gold plated threads, and hand-stitched sequin borders.',
+                    'A tailored double-breasted power blazer paired with matching straight-leg trousers. Crafted with Italian luxury crepe, structured shoulder pads, and gold accents.'
+                  ][videoCarouselIdx]}
+                </p>
+
+                <div className="flex items-center gap-4 py-2 border-y border-neutral-100">
+                  <div>
+                    <span className="text-[10px] text-neutral-400 line-through block font-mono">
+                      Original Catalog Price: ₹{[
+                        '1,60,000',
+                        '1,85,000',
+                        '42,000'
+                      ][videoCarouselIdx]}
+                    </span>
+                    <span className="text-xl font-extrabold text-[#D4AF37] font-mono">
+                      Atelier Promo Price: ₹{[
+                        '1,28,000',
+                        '1,48,000',
+                        '33,600'
+                      ][videoCarouselIdx]}
+                    </span>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-800 text-[9px] font-black tracking-widest px-2.5 py-1 uppercase rounded border border-emerald-200">
+                    20% Saving
+                  </span>
+                </div>
+
+                {/* XS to XL Sizing Selectors */}
+                <div className="space-y-2">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-neutral-400">Atelier Sizing Selection</span>
+                  <div className="flex flex-wrap gap-2">
+                    {['XS', 'S', 'M', 'L', 'XL'].map((sz) => (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setVideoSelectedSize(sz)}
+                        className={`px-4 py-2 rounded text-xs tracking-widest font-mono font-bold border transition-all cursor-pointer ${
+                          videoSelectedSize === sz 
+                            ? 'bg-[#4A1525] text-white border-[#4A1525]' 
+                            : 'bg-white text-neutral-600 border-neutral-300 hover:border-[#D4AF37]'
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Sizing Notes Input */}
+                <div className="space-y-2">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-neutral-400">Bespoke Fit Custom Measurements (Optional)</span>
+                  <textarea
+                    placeholder="Specify your custom bust, waist, hips, and height measurements for a perfect master fit tailorship."
+                    className="w-full bg-white border border-neutral-300 rounded-lg p-3 text-xs outline-none focus:border-[#D4AF37] h-20 resize-none font-sans"
+                    value={videoCustomNotes}
+                    onChange={(e) => setVideoCustomNotes(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    const activeId = [
+                      'prod_designer_01',
+                      'prod_wedding_01',
+                      'prod_office_01'
+                    ][videoCarouselIdx];
+                    const baseGown = products.find(p => p.id === activeId);
+                    const activePromoPrice = [
+                      128000,
+                      148000,
+                      33600
+                    ][videoCarouselIdx];
+                    if (baseGown) {
+                      const customGown = { 
+                        ...baseGown, 
+                        price: activePromoPrice
+                      };
+                      handleAddToCart(customGown, videoSelectedSize, videoCustomNotes || undefined);
+                      showToast(`${customGown.name} added to selection bag with custom fit specifications.`, "success");
+                    } else {
+                      showToast("Featured gown is currently unavailable.", "error");
+                    }
+                  }}
+                  className={`${theme.buttonPrimary} w-full py-4 text-xs font-bold uppercase tracking-widest transition-all cursor-pointer rounded-lg`}
+                >
+                  Purchase Gown Now
+                </button>
+              </div>
+            </div>
+
+            {/* EDITORIAL LOOKBOOK GALLERY: 3-COLUMN PARALLAX COLLAGE */}
+            <section ref={videoImageParallaxRef} className="max-w-7xl mx-auto py-16 overflow-hidden mt-16 border-t border-[#D4AF37]/15">
+              <div className="text-center mb-16 pt-10">
+                <span className="text-[10px] id-section uppercase tracking-[0.3em] font-black text-[#D4AF37] block mb-2">ATELIER STUDIO LOOKBOOK</span>
+                <h3 className="text-3xl font-serif italic text-[#4A1525] font-extrabold tracking-tight">Atelier Editorial Spread</h3>
+                <p className="text-xs text-neutral-400 font-light mt-2 font-serif italic">Scroll to observe three-dimensional parallax layout shifts</p>
+              </div>
+
+              {/* Staggered Collage Layout */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 items-stretch min-h-[500px]">
+                {/* 1. Left Card: Silhouette Frame (Vertical Parallax) */}
+                <motion.div 
+                  style={{ y: yLeftCol }}
+                  className="rounded-2xl overflow-hidden border border-[#D4AF37]/20 shadow-lg relative bg-neutral-50 h-[380px] md:h-[480px] self-start"
+                >
+                  <img 
+                    src={[
+                      'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=800',
+                      'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=800',
+                      'https://images.unsplash.com/photo-1548624149-f7b3e6432b42?q=80&w=800'
+                    ][videoCarouselIdx]}
+                    className="w-full h-full object-cover"
+                    alt="Couture Silhouette"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                    <span className="text-[8px] font-mono tracking-widest text-[#D4AF37] uppercase font-bold">Look 01 • Silhouette</span>
+                    <h4 className="text-base font-serif italic font-bold mt-1">
+                      {[
+                        'Crimson Empress Silhouette Frame',
+                        'Gilded Marigold Lehenga Frame',
+                        'Ivory Blazer Silhouette Frame'
+                      ][videoCarouselIdx]}
+                    </h4>
+                  </div>
+                </motion.div>
+
+                {/* 2. Center Card: Backstage / Mood Capture (Zoom & Rotate Parallax) */}
+                <div className="rounded-2xl overflow-hidden border border-[#D4AF37]/20 shadow-xl relative bg-neutral-100 h-[380px] md:h-[520px] -mt-4 z-10">
+                  <motion.img 
+                    style={{ 
+                      scale: scaleCenter,
+                      rotate: rotateCenter
+                    }}
+                    src={[
+                      'https://images.unsplash.com/photo-1554412933-514a83d2f3c8?q=80&w=800',
+                      'https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800',
+                      'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800'
+                    ][videoCarouselIdx]}
+                    className="w-full h-full object-cover origin-center"
+                    alt="Atelier Mood"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                    <span className="text-[8px] font-mono tracking-widest text-[#D4AF37] uppercase font-bold">Look 02 • Backstage Capture</span>
+                    <h4 className="text-base font-serif italic font-bold mt-1">
+                      {[
+                        'Motion Atelier Backstage Feed',
+                        'Couture Fitting Studio Mood',
+                        'Maison Crepe Material Detail'
+                      ][videoCarouselIdx]}
+                    </h4>
+                  </div>
+                </div>
+
+                {/* 3. Right Card: Details & Textures (Counter-Parallax) */}
+                <motion.div 
+                  style={{ y: yRightCol }}
+                  className="rounded-2xl overflow-hidden border border-[#D4AF37]/20 shadow-lg relative bg-neutral-50 h-[380px] md:h-[450px] self-end md:-mt-8"
+                >
+                  <img 
+                    src={[
+                      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=800',
+                      'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800',
+                      'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=800'
+                    ][videoCarouselIdx]}
+                    className="w-full h-full object-cover"
+                    alt="Couture Weave Details"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                    <span className="text-[8px] font-mono tracking-widest text-[#D4AF37] uppercase font-bold">Look 03 • Material Details</span>
+                    <h4 className="text-base font-serif italic font-bold mt-1">
+                      {[
+                        'Crimson Cape Drape Detail',
+                        'Gilded Banarasi Silk Weave',
+                        'Bespoke Gold Button Detail'
+                      ][videoCarouselIdx]}
+                    </h4>
+                  </div>
+                </motion.div>
+              </div>
+            </section>
+          </motion.div>
+        )}
 
         {/* 2. COLLECTIONS GRIDS */}
         {activeTab === 'collections' && (
@@ -2130,16 +2657,21 @@ export default function App() {
                         <div className="flex-1 min-w-0">
                           <p className="font-serif italic text-xs font-bold text-[#4A1525] truncate">{item?.product?.name}</p>
                           <p className="text-[10px] text-neutral-500 mt-0.5">Size Selected: <strong className="text-[#4A1525]">{item.selectedSize}</strong></p>
+                          {item.customMeasurements && (
+                            <p className="text-[9px] text-[#B76E79] font-mono mt-0.5 truncate" title={item.customMeasurements}>
+                              Bespoke: {item.customMeasurements}
+                            </p>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <button 
-                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity - 1)}
+                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity - 1, item.customMeasurements)}
                               className="w-5 h-5 border rounded flex items-center justify-center font-bold text-xs"
                             >
                               -
                             </button>
                             <span className="text-xs font-mono font-bold text-zinc-800">{item.quantity}</span>
                             <button 
-                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity + 1)}
+                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity + 1, item.customMeasurements)}
                               className="w-5 h-5 border rounded flex items-center justify-center font-bold text-xs"
                             >
                               +
@@ -2149,7 +2681,7 @@ export default function App() {
                         <div className="text-right">
                           <p className="text-xs font-bold text-[#4A1525] font-mono">₹{(item.product?.price * item.quantity).toLocaleString()}</p>
                           <button
-                            onClick={() => handleRemoveCartItem(item.product.id, item.selectedSize)}
+                            onClick={() => handleRemoveCartItem(item.product.id, item.selectedSize, item.customMeasurements)}
                             className="text-red-700 hover:text-red-900 mt-1 pointer text-[10px] uppercase font-bold"
                           >
                             Remove
