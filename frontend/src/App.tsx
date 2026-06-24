@@ -973,14 +973,14 @@ export default function App() {
                       show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } }
                     }}
                     onClick={() => { setFilterCategory(capsule.cat); setActiveTab('collections'); }}
-                    className="group cursor-pointer relative h-96 overflow-hidden rounded-xl bg-[#4A1525]/10 border border-[#D4AF37]/15 shadow-sm scroll-zoom-container"
+                    className="group cursor-pointer relative h-96 overflow-hidden rounded-xl bg-neutral-900 border border-[#D4AF37]/15 shadow-sm scroll-zoom-container"
                   >
                     <img 
                       src={capsule.img} 
                       alt={capsule.title} 
-                      className="w-full h-full object-cover opacity-75 group-hover:scale-105 transition-all duration-700 mix-blend-luminosity hover:mix-blend-normal scroll-zoom-img" 
+                      className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 scroll-zoom-img" 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#4A1525]/95 via-[#4A1525]/45 to-transparent flex flex-col justify-end p-8">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-end p-8">
                       <span className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-black mb-1">CAPSULE COLLECTION</span>
                       <h3 className="text-2xl font-serif italic text-white font-bold">{capsule.title}</h3>
                       <p className="text-xs text-neutral-200 italic font-serif leading-relaxed mt-1 font-light opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -2626,31 +2626,34 @@ export default function App() {
       {/* LUXURY CART BAG SIDEBAR OVERLAY */}
       {isCartOpen && (
         <div className="fixed inset-0 bg-[#4A1525]/30 backdrop-blur-sm z-50 flex justify-end">
-          <div className="bg-[#FAF9F6] text-[#4A1525] w-full max-w-md h-full flex flex-col justify-between border-l border-[#D4AF37]/35 shadow-2xl p-6 relative animate-luxury-reveal">
+          <div className={`bg-[#FAF9F6] text-[#4A1525] w-full h-full flex flex-col justify-between border-l border-[#D4AF37]/35 shadow-2xl p-6 relative animate-luxury-reveal transition-all duration-300 ${
+            isCheckoutMode ? 'max-w-md md:max-w-3xl' : 'max-w-md'
+          }`}>
             
             {/* Header */}
-            <div>
-              <div className="flex justify-between items-center border-b border-[#D4AF37]/25 pb-4 mb-4">
-                <h3 className="font-serif italic text-2xl text-[#4A1525] font-extrabold">My Selection Bag</h3>
-                <button 
-                  onClick={() => { setIsCartOpen(false); setIsCheckoutMode(false); }}
-                  className="p-1.5 border hover:bg-neutral-50 rounded-full cursor-pointer text-xs"
-                >
-                  ✕ CLOSE
-                </button>
-              </div>
+            <div className="flex justify-between items-center border-b border-[#D4AF37]/25 pb-4 mb-4">
+              <h3 className="font-serif italic text-2xl text-[#4A1525] font-extrabold">My Selection Bag</h3>
+              <button 
+                onClick={() => { setIsCartOpen(false); setIsCheckoutMode(false); }}
+                className="p-1.5 border hover:bg-neutral-50 rounded-full cursor-pointer text-xs"
+              >
+                ✕ CLOSE
+              </button>
+            </div>
 
-              {/* Items List */}
-              {cart.length === 0 && !isCheckoutMode ? (
-                <div className="text-center py-24 select-none space-y-4">
-                  <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mx-auto text-neutral-400">
-                    <ShoppingBag size={20} />
-                  </div>
-                  <p className="italic text-neutral-400 text-xs font-serif">Your bespoke luxury collection bag is currently empty.</p>
+            {/* Content Body */}
+            {cart.length === 0 && !isCheckoutMode ? (
+              <div className="text-center py-24 select-none space-y-4 flex-1 flex flex-col justify-center">
+                <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mx-auto text-neutral-400">
+                  <ShoppingBag size={20} />
                 </div>
-              ) : (
-                !isCheckoutMode ? (
-                  <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                <p className="italic text-neutral-400 text-xs font-serif">Your bespoke luxury collection bag is currently empty.</p>
+              </div>
+            ) : (
+              !isCheckoutMode ? (
+                // Standard Cart View (Single Column layout)
+                <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                  <div className="space-y-4 overflow-y-auto pr-1 flex-1 max-h-[55vh]">
                     {cart.map((item, idx) => (
                       <div key={idx} className="flex gap-4 p-3 bg-white border border-neutral-100 rounded-lg hover:shadow-sm transition-all items-center">
                         <img src={item.product?.images?.[0]} className="w-14 h-16 object-cover rounded" />
@@ -2690,171 +2693,210 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                ) : (
-                  /* CHECKOUT WORKFLOW VIEW inside cart shell to conserve DOM token count and prevent overflow */
-                  <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-1 text-xs text-neutral-700 font-light">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b pb-1">DELIVERY COORDINATES & SETTLEMENT</h4>
+
+                  {/* Calculations and Actions footer for Cart View */}
+                  <div className="border-t border-[#D4AF37]/30 pt-4 space-y-3 mt-4">
+                    <div className="flex gap-2 text-xs">
+                      <input
+                        type="text"
+                        placeholder="Elite Invite Code (try ANVAANEW)"
+                        className="flex-1 bg-white border p-2 outline-none focus:border-[#D4AF37]"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                      />
+                      <button
+                        onClick={applyPromo}
+                        className="bg-[#4A1525] hover:bg-[#6A162B] text-white px-4 py-2 text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer rounded-lg"
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    <div className="text-xs space-y-1.5">
+                      <div className="flex justify-between">
+                        <span>Atelier Base Price:</span>
+                        <span className="font-mono">₹{cartSubtotal.toLocaleString('en-IN')}</span>
+                      </div>
+                      {couponDiscount > 0 && (
+                        <div className="flex justify-between text-emerald-700 font-semibold">
+                          <span>Invitation Promo Code:</span>
+                          <span className="font-mono">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span>Premium Insured Carrier:</span>
+                        <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
+                      </div>
+                      <div className="flex justify-between text-base font-extrabold text-[#4A1525] pt-2 border-t">
+                        <span>Total Valuation:</span>
+                        <span className="font-mono text-[#D4AF37]">₹{cartTotal.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        if (!currentUser) {
+                          showToast("Please login first to enter checkout.", 'error');
+                          setIsCartOpen(false);
+                          setActiveTab('auth');
+                        } else {
+                          setIsCheckoutMode(true);
+                        }
+                      }}
+                      className="w-full bg-[#4A1525] hover:bg-[#6A162B] text-[#FAF9F6] py-3.5 text-xs font-black uppercase tracking-widest transition-all cursor-pointer rounded-lg text-center shadow-lg"
+                    >
+                      PROCEED TO COUTURE CHECKOUT
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Checkout Mode: Two-Column layout on laptops (md:grid-cols-12), Single-Column on mobile
+                <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                  
+                  {/* Moving Ticker banner at the top of checkout */}
+                  <div className="luxury-marquee-container bg-[#FFFDF9] border border-[#D4AF37]/20 py-2 rounded-md mb-4 select-none">
+                    <div className="luxury-marquee-content text-[#AA771C] text-[10px] uppercase tracking-[0.15em] font-semibold inline-flex items-center gap-8">
+                      <span>✦ ENJOY 10% COMPLIMENTARY OFF FOR FIRST ORDER — CODE: <strong className="text-[#4A1525] font-bold">ANVAANEW</strong> ✦</span>
+                      <span className="text-[#D4AF37]">✦ ATELIER CUSTOM MEASUREMENTS AVAILABLE ON ALL DESIGNS ✦</span>
+                      <span className="opacity-80">✦ MUMBAI & NEW DELHI FLAGSHIPS CHIC LOUNGE Launching June 2026 ✦</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 overflow-y-auto pr-1">
                     
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-[9px] uppercase font-bold mb-1">Couture Recipient Name</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
-                          value={addressName}
-                          onChange={(e) => setAddressName(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] uppercase font-bold mb-1">Street Address, Flat / Villa No.</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
-                          value={addressStreet}
-                          onChange={(e) => setAddressStreet(e.target.value)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
+                    {/* Left Column: Delivery coordinates */}
+                    <div className="md:col-span-7 space-y-4">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b pb-1">DELIVERY COORDINATES</h4>
+                      
+                      <div className="space-y-3">
                         <div>
-                          <label className="block text-[9px] uppercase font-bold mb-1">City</label>
+                          <label className="block text-[9px] uppercase font-bold mb-1">Couture Recipient Name</label>
                           <input
                             type="text"
                             required
-                            className="w-full bg-white border p-2 text-xs"
-                            value={addressCity}
-                            onChange={(e) => setAddressCity(e.target.value)}
+                            className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
+                            value={addressName}
+                            onChange={(e) => setAddressName(e.target.value)}
                           />
                         </div>
                         <div>
-                          <label className="block text-[9px] uppercase font-bold mb-1">Pincode Coordinate</label>
+                          <label className="block text-[9px] uppercase font-bold mb-1">Street Address, Flat / Villa No.</label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
+                            value={addressStreet}
+                            onChange={(e) => setAddressStreet(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[9px] uppercase font-bold mb-1">City</label>
+                            <input
+                              type="text"
+                              required
+                              className="w-full bg-white border p-2 text-xs"
+                              value={addressCity}
+                              onChange={(e) => setAddressCity(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] uppercase font-bold mb-1">Pincode Coordinate</label>
+                            <input
+                              type="text"
+                              required
+                              className="w-full bg-white border p-2 text-xs font-mono"
+                              value={addressPincode}
+                              onChange={(e) => setAddressPincode(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] uppercase font-bold mb-1">Contact Phone</label>
                           <input
                             type="text"
                             required
                             className="w-full bg-white border p-2 text-xs font-mono"
-                            value={addressPincode}
-                            onChange={(e) => setAddressPincode(e.target.value)}
+                            value={addressPhone}
+                            onChange={(e) => setAddressPhone(e.target.value)}
                           />
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-[9px] uppercase font-bold mb-1">Contact Phone</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-white border p-2 text-xs font-mono"
-                          value={addressPhone}
-                          onChange={(e) => setAddressPhone(e.target.value)}
-                        />
+                    </div>
+
+                    {/* Right Column: Payment Gateway & Settlement summary */}
+                    <div className="md:col-span-5 flex flex-col justify-between space-y-4 md:border-l md:border-[#D4AF37]/20 md:pl-6">
+                      <div className="space-y-4">
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b pb-1">SETTLEMENT & GATEWAY</h4>
+                        
+                        {/* Payment selections */}
+                        <div className="space-y-2">
+                          <label className="block text-[9px] uppercase font-bold mb-1">Select Solder-Secure Payment Gateway</label>
+                          <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-[#4A1525] uppercase tracking-wider">
+                            {[
+                              'Secure UPI Direct',
+                              'Mastercard / Visa VIP',
+                              'RuPay Corporate',
+                              'Net-Banking Gold'
+                            ].map(pay => (
+                              <button
+                                key={pay}
+                                type="button"
+                                onClick={() => setPaymentMethod(pay)}
+                                className={`cursor-pointer py-2 border rounded text-center transition-all ${paymentMethod === pay ? 'bg-[#4A1525] text-white border-[#4A1525]' : 'bg-white text-neutral-600 border-neutral-300'}`}
+                              >
+                                {pay}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Payment selections */}
-                      <div>
-                        <label className="block text-[9px] uppercase font-bold mb-2">Select Solder-Secure Payment Gateway</label>
-                        <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-[#4A1525] uppercase tracking-wider">
-                          {[
-                            'Secure UPI Direct',
-                            'Mastercard / Visa VIP',
-                            'RuPay Corporate',
-                            'Net-Banking Gold'
-                          ].map(pay => (
-                            <button
-                              key={pay}
-                              type="button"
-                              onClick={() => setPaymentMethod(pay)}
-                              className={`cursor-pointer py-2 border rounded text-center transition-all ${paymentMethod === pay ? 'bg-[#4A1525] text-white border-[#4A1525]' : 'bg-white text-neutral-600 border-neutral-300'}`}
-                            >
-                              {pay}
-                            </button>
-                          ))}
+                      {/* Calculations & Action Buttons */}
+                      <div className="border-t border-[#D4AF37]/35 pt-4 space-y-4">
+                        {/* Subtotals */}
+                        <div className="text-xs space-y-1.5">
+                          <div className="flex justify-between">
+                            <span>Atelier Base Price:</span>
+                            <span className="font-mono">₹{cartSubtotal.toLocaleString('en-IN')}</span>
+                          </div>
+                          {couponDiscount > 0 && (
+                            <div className="flex justify-between text-emerald-700 font-semibold">
+                              <span>Invitation Promo Code:</span>
+                              <span className="font-mono">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span>Premium Insured Carrier:</span>
+                            <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
+                          </div>
+                          <div className="flex justify-between text-base font-extrabold text-[#4A1525] pt-2 border-t">
+                            <span>Total Valuation:</span>
+                            <span className="font-mono text-[#D4AF37]">₹{cartTotal.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setIsCheckoutMode(false)}
+                            className="flex-1 border text-[#4A1525] hover:bg-neutral-100 py-3 text-[10px] uppercase font-bold tracking-widest cursor-pointer rounded-lg"
+                          >
+                            Back to Bag
+                          </button>
+                          <button
+                            onClick={handleCompleteOrder}
+                            className="flex-1 bg-[#D4AF37] hover:bg-amber-600 text-[#4A1525] py-3 text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer shadow-md rounded-lg"
+                          >
+                            SECURE AUTHORIZATION
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )
-              )}
-            </div>
 
-            {/* Calculations and Actions footer */}
-            {cart.length > 0 && (
-              <div className="border-t border-[#D4AF37]/30 pt-4 space-y-3">
-                
-                {/* Coupon alignment panel */}
-                {!isCheckoutMode && (
-                  <div className="flex gap-2 text-xs">
-                    <input
-                      type="text"
-                      placeholder="Elite Invite Code (try ANVAANEW)"
-                      className="flex-1 bg-white border p-2 outline-none focus:border-[#D4AF37]"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                    />
-                    <button
-                      onClick={applyPromo}
-                      className="bg-[#4A1525] hover:bg-[#6A162B] text-white px-4 py-2 text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer rounded-lg"
-                    >
-                      Apply
-                    </button>
-                  </div>
-                )}
-
-                {/* Subtotals */}
-                <div className="text-xs space-y-1.5">
-                  <div className="flex justify-between">
-                    <span>Atelier Base Price:</span>
-                    <span className="font-mono">₹{cartSubtotal.toLocaleString('en-IN')}</span>
-                  </div>
-                  {couponDiscount > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-semibold">
-                      <span>Invitation Promo Code:</span>
-                      <span className="font-mono">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span>Premium Insured Carrier:</span>
-                    <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-extrabold text-[#4A1525] pt-2 border-t">
-                    <span>Total Valuation:</span>
-                    <span className="font-mono text-[#D4AF37]">₹{cartTotal.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
-
-                {/* Submit trigger button */}
-                {!isCheckoutMode ? (
-                  <button
-                    onClick={() => {
-                      if (!currentUser) {
-                        showToast("Please login first to enter checkout.", 'error');
-                        setIsCartOpen(false);
-                        setActiveTab('auth');
-                      } else {
-                        setIsCheckoutMode(true);
-                      }
-                    }}
-                    className="w-full bg-[#4A1525] hover:bg-[#6A162B] text-[#FAF9F6] py-3.5 text-xs font-black uppercase tracking-widest transition-all cursor-pointer rounded-lg text-center shadow-lg"
-                  >
-                    PROCEED TO COUTURE CHECKOUT
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setIsCheckoutMode(false)}
-                      className="flex-1 border text-[#4A1525] hover:bg-neutral-100 py-3 text-[10px] uppercase font-bold tracking-widest cursor-pointer rounded-lg"
-                    >
-                      Back to Bag
-                    </button>
-                    <button
-                      onClick={handleCompleteOrder}
-                      className="flex-1 bg-[#D4AF37] hover:bg-amber-600 text-[#4A1525] py-3 text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer shadow-md"
-                    >
-                      SECURE AUTHORIZATION
-                    </button>
-                  </div>
-                )}
-
-              </div>
+              )
             )}
 
           </div>
@@ -2910,3 +2952,5 @@ export default function App() {
     </div>
   );
 }
+
+

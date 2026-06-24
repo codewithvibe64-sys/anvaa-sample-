@@ -34,13 +34,6 @@ export default function Navbar({
 }: NavbarProps) {
   return (
     <nav className="w-full bg-white/95 backdrop-blur-md border-b border-[#D4AF37]/20 sticky top-0 z-50 transition-all duration-300">
-      {/* Upper ticker bar with elegant solid design and gold text */}
-      <div className="bg-[#FFFDF9] border-b border-[#D4AF37]/15 text-[#AA771C] text-[10px] uppercase tracking-[0.25em] py-2.5 px-4 flex justify-between items-center text-center font-semibold shadow-xs">
-        <span className="hidden md:inline font-bold">✦ ENJOY 10% COMPLIMENTARY OFF FOR FIRST ORDER — CODE: ANVAANEW ✦</span>
-        <span className="mx-auto md:mx-0 font-extrabold tracking-[0.3em] text-[#D4AF37]">ATELIER CUSTOM MEASUREMENTS AVAILABLE ON ALL DESIGNS</span>
-        <span className="hidden md:inline font-bold opacity-80">MUMBAI & NEW DELHI FLAGSHIPS CHIC LOUNGE Launching June 2026</span>
-      </div>
-
       <div className="max-w-7xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between relative">
         {/* Navigation links - Inspired by Bold Typography style */}
         <motion.div 
@@ -217,3 +210,5 @@ export default function Navbar({
     </nav>
   );
 }
+
+

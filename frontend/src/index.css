@@ -386,4 +386,29 @@ p.italic {
   animation: button-glow 0.8s ease-in-out infinite;
 }
 
+/* Luxury Moving Marquee */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
 
+.luxury-marquee-container {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  width: 100%;
+}
+
+.luxury-marquee-content {
+  display: inline-block;
+  animation: marquee-scroll 25s linear infinite;
+  padding-left: 20px;
+}
+
+.luxury-marquee-container:hover .luxury-marquee-content {
+  animation-play-state: paused;
+}

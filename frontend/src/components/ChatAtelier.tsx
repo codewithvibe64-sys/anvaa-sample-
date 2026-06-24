@@ -327,3 +327,5 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
     </div>
   );
 }
+
+
