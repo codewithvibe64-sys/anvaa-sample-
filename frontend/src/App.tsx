@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from 'motion/react';
 import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -21,6 +24,82 @@ import ChatAtelier from './components/ChatAtelier';
 import TrackingDocketModal from './components/TrackingDocketModal';
 import { Product, Designer, CartItem, Order, Consultation, Review } from './types';
 import AuthScreen from './components/AuthScreen';
+
+
+const ANIMAL_TEMPLATES = {
+  peacock: {
+    name: 'Majestic Peacock',
+    emoji: '🦚',
+    bg: 'bg-emerald-50/70',
+    border: 'border-emerald-200/60',
+    text: 'text-emerald-950',
+    accent: 'text-emerald-800',
+    accentBorder: 'border-emerald-300'
+  },
+  swan: {
+    name: 'Graceful Swan',
+    emoji: '🦢',
+    bg: 'bg-blue-50/60',
+    border: 'border-blue-200/50',
+    text: 'text-slate-900',
+    accent: 'text-slate-700',
+    accentBorder: 'border-slate-300'
+  },
+  leopard: {
+    name: 'Silk Leopard',
+    emoji: '🐆',
+    bg: 'bg-amber-50/60',
+    border: 'border-amber-200/50',
+    text: 'text-amber-950',
+    accent: 'text-amber-800',
+    accentBorder: 'border-amber-300'
+  },
+  lion: {
+    name: 'Royal Lion',
+    emoji: '🦁',
+    bg: 'bg-orange-50/60',
+    border: 'border-orange-200/50',
+    text: 'text-amber-900',
+    accent: 'text-orange-855',
+    accentBorder: 'border-orange-300'
+  },
+  fox: {
+    name: 'Crafty Fox',
+    emoji: '🦊',
+    bg: 'bg-orange-50/40',
+    border: 'border-orange-200/40',
+    text: 'text-orange-950',
+    accent: 'text-orange-800',
+    accentBorder: 'border-orange-300'
+  },
+  tiger: {
+    name: 'Fierce Tiger',
+    emoji: '🐯',
+    bg: 'bg-[#FFF9E6]/70',
+    border: 'border-amber-350/40',
+    text: 'text-amber-950',
+    accent: 'text-amber-900',
+    accentBorder: 'border-amber-300'
+  },
+  panda: {
+    name: 'Gentle Panda',
+    emoji: '🐼',
+    bg: 'bg-neutral-50/70',
+    border: 'border-neutral-200/60',
+    text: 'text-neutral-950',
+    accent: 'text-neutral-700',
+    accentBorder: 'border-neutral-300'
+  },
+  wolf: {
+    name: 'Noble Wolf',
+    emoji: '🐺',
+    bg: 'bg-slate-50/50',
+    border: 'border-slate-200/50',
+    text: 'text-slate-950',
+    accent: 'text-slate-800',
+    accentBorder: 'border-slate-350'
+  }
+};
 
 
 const getThemeClasses = (tab: string, customColorMood: string = 'rose') => {
@@ -299,6 +378,7 @@ export default function App() {
   
   // Modals & Active Selections
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [detailedProduct, setDetailedProduct] = useState<(Product & { reviews?: any[] }) | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
@@ -333,6 +413,23 @@ export default function App() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewName, setReviewName] = useState('');
+  const [selectedAnimal, setSelectedAnimal] = useState<'peacock' | 'swan' | 'leopard' | 'lion' | 'fox' | 'tiger' | 'panda' | 'wolf'>('peacock');
+  const [selectionSparkles, setSelectionSparkles] = useState<{ id: number; x: number; y: number; emoji: string; angle: number; speed: number; scale: number }[]>([]);
+
+  const triggerMascotSparkles = (emoji: string, event: React.MouseEvent<HTMLButtonElement>, count: number = 6) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const newSparkles = Array.from({ length: count }).map((_, i) => ({
+      id: Math.random() + i + Date.now(),
+      x: rect.left + rect.width / 2 + (Math.random() - 0.5) * 30,
+      y: rect.top + rect.height / 2 + (Math.random() - 0.5) * 10,
+      emoji: Math.random() > 0.45 ? emoji : '✨',
+      angle: (Math.random() * Math.PI * 0.7) - Math.PI * 0.85,
+      speed: Math.random() * 1.5 + 1.0,
+      scale: Math.random() * 0.35 + 0.65
+    }));
+    setSelectionSparkles(prev => [...prev, ...newSparkles]);
+  };
+
   const [isZoomed, setIsZoomed] = useState(false);
   const [showProfileGuide, setShowProfileGuide] = useState(false);
 
@@ -452,6 +549,54 @@ export default function App() {
     // handleAutoLogin();
   }, []);
 
+  // Load selectedProduct and detailedProduct from localStorage on mount/products load if activeTab is 'product-detail'
+  useEffect(() => {
+    const fetchDetailedProduct = async () => {
+      const savedProductId = localStorage.getItem('anvaa_selected_product_id');
+      if (savedProductId) {
+        try {
+          const res = await fetch(`/api/products/${savedProductId}`);
+          if (res.ok) {
+            const data = await res.json();
+            setDetailedProduct(data);
+            setSelectedProduct(data);
+            const savedSize = localStorage.getItem('anvaa_detail_size') || data.sizes?.[0] || 'M';
+            setDetailSize(savedSize);
+            const savedImgIdx = Number(localStorage.getItem('anvaa_detail_image_idx') || '0');
+            setDetailImageIdx(savedImgIdx);
+          } else {
+            const prod = products.find(p => p.id === savedProductId || p._id === savedProductId);
+            if (prod) {
+              setDetailedProduct(prod);
+              setSelectedProduct(prod);
+              const savedSize = localStorage.getItem('anvaa_detail_size') || prod.sizes?.[0] || 'M';
+              setDetailSize(savedSize);
+              const savedImgIdx = Number(localStorage.getItem('anvaa_detail_image_idx') || '0');
+              setDetailImageIdx(savedImgIdx);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load detailed product", e);
+          const prod = products.find(p => p.id === savedProductId || p._id === savedProductId);
+          if (prod) {
+            setDetailedProduct(prod);
+            setSelectedProduct(prod);
+            const savedSize = localStorage.getItem('anvaa_detail_size') || prod.sizes?.[0] || 'M';
+            setDetailSize(savedSize);
+            const savedImgIdx = Number(localStorage.getItem('anvaa_detail_image_idx') || '0');
+            setDetailImageIdx(savedImgIdx);
+          }
+        }
+      }
+    };
+
+    if (activeTab === 'product-detail') {
+      fetchDetailedProduct();
+    } else {
+      setDetailedProduct(null);
+    }
+  }, [activeTab, products]);
+
   // GSAP and Scroll animations on activeTab transition
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -496,6 +641,74 @@ export default function App() {
       }, 100);
     }
   }, [activeTab]);
+
+  // Elegant GSAP Scroll-Reveal animations for Product Details page
+  useEffect(() => {
+    if (activeTab === 'product-detail' && detailedProduct) {
+      const timer = setTimeout(() => {
+        // 1. Reveal header
+        if (document.querySelector('.gsap-reveal-header')) {
+          gsap.fromTo('.gsap-reveal-header', 
+            { opacity: 0, y: -25 }, 
+            { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }
+          );
+        }
+
+        // 2. Reveal image gallery (fade-in, gentle rise, skew)
+        if (document.querySelector('.gsap-reveal-gallery')) {
+          gsap.fromTo('.gsap-reveal-gallery', 
+            { opacity: 0, y: 50, skewY: 2 }, 
+            { opacity: 1, y: 0, skewY: 0, duration: 1.0, ease: "power4.out" }
+          );
+        }
+
+        // 3. Reveal details configuration & text (staggered fade-in, gentle rise, skew)
+        if (document.querySelectorAll('.gsap-reveal-text').length > 0) {
+          gsap.fromTo('.gsap-reveal-text', 
+            { opacity: 0, y: 35, skewX: -2 }, 
+            { opacity: 1, y: 0, skewX: 0, duration: 0.9, stagger: 0.1, ease: "power3.out" }
+          );
+        }
+
+        // 4. Scroll reveal for critique submission form & live preview
+        if (document.querySelector('.gsap-reveal-critique-form')) {
+          ScrollTrigger.create({
+            trigger: '.gsap-reveal-critique-form',
+            start: 'top 85%',
+            onEnter: () => {
+              gsap.fromTo('.gsap-reveal-critique-form', 
+                { opacity: 0, y: 40, skewY: 1.5 }, 
+                { opacity: 1, y: 0, skewY: 0, duration: 1.0, ease: "power3.out" }
+              );
+            },
+            once: true
+          });
+        }
+
+        // 5. Scroll reveal for review list & individual cards (staggered)
+        if (document.querySelector('.gsap-reveal-reviews-list') && document.querySelectorAll('.gsap-reveal-review-card').length > 0) {
+          ScrollTrigger.create({
+            trigger: '.gsap-reveal-reviews-list',
+            start: 'top 85%',
+            onEnter: () => {
+              gsap.fromTo('.gsap-reveal-review-card', 
+                { opacity: 0, y: 45, skewY: 3 }, 
+                { opacity: 1, y: 0, skewY: 0, duration: 0.9, stagger: 0.12, ease: "power3.out" }
+              );
+            },
+            once: true
+          });
+        }
+
+      }, 100);
+
+      return () => {
+        clearTimeout(timer);
+        // Clean up ScrollTrigger instances to prevent leaks
+        ScrollTrigger.getAll().forEach(t => t.kill());
+      };
+    }
+  }, [activeTab, detailedProduct]);
 
   // Programmatically force autoplay and muting of all video elements on tab or carousel index change
   useEffect(() => {
@@ -788,16 +1001,27 @@ export default function App() {
         body: JSON.stringify({
           rating: reviewRating,
           comment: reviewComment,
-          userName: reviewName || currentUser?.name || "Premium Client"
+          userName: `${reviewName || currentUser?.name || "Premium Client"} ${ANIMAL_TEMPLATES[selectedAnimal].emoji}`
         })
       });
 
       if (res.ok) {
         showToast("Your refined critique has been recorded with the design salon.", 'success');
-        setSelectedProduct(null); // Close modal
         setReviewComment('');
         setReviewRating(5);
         setReviewName('');
+        setSelectedAnimal('peacock');
+        if (activeTab === 'product-detail') {
+          // Re-fetch detailed product
+          const detailRes = await fetch(`/api/products/${productId}`);
+          if (detailRes.ok) {
+            const data = await detailRes.json();
+            setDetailedProduct(data);
+            setSelectedProduct(data);
+          }
+        } else {
+          setSelectedProduct(null); // Close modal
+        }
         fetchProducts(); // Refresh
       }
     } catch (e) {
@@ -809,6 +1033,13 @@ export default function App() {
     setSelectedProduct(product);
     setDetailSize(product.sizes?.[0] || 'M');
     setDetailImageIdx(0);
+  };
+
+  const handleOpenProductDetailsPage = (product: Product) => {
+    localStorage.setItem('anvaa_selected_product_id', product.id || product._id || '');
+    localStorage.setItem('anvaa_detail_size', product.sizes?.[0] || 'M');
+    localStorage.setItem('anvaa_detail_image_idx', '0');
+    setActiveTab('product-detail');
   };
 
   const handleContactDesigner = (d: Designer) => {
@@ -1062,22 +1293,22 @@ export default function App() {
                       </div>
 
                       {/* Back Face: Detailed Customization Options */}
-                      <div className="absolute inset-0 p-6 flex flex-col justify-between bg-[#4A1525] border border-[#D4AF37]/35 rounded-xl shadow-lg transition-all duration-700 ease-out origin-center [transform:rotateY(-90deg)] opacity-0 group-hover:[transform:rotateY(0deg)] group-hover:opacity-100 [backface-visibility:hidden] z-20">
+                      <div className="absolute inset-0 p-6 flex flex-col justify-between bg-[#FAF5EF] border border-[#D4AF37]/35 rounded-xl shadow-lg transition-all duration-700 ease-out origin-center [transform:rotateY(-90deg)] opacity-0 group-hover:[transform:rotateY(0deg)] group-hover:opacity-100 [backface-visibility:hidden] z-20">
                         <div className="space-y-4">
-                          <div className="border-b border-[#D4AF37]/25 pb-2">
-                            <span className="text-[8px] font-mono text-[#D4AF37] uppercase tracking-widest block">{prod.category} • ATELIER OFFERS</span>
-                            <h3 className="font-serif italic text-base font-bold text-white mt-1">{prod.name}</h3>
+                          <div className="border-b border-[#D4AF37]/35 pb-2">
+                            <span className="text-[8px] font-mono text-[#B76E79] uppercase tracking-widest block">{prod.category} • ATELIER OFFERS</span>
+                            <h3 className="font-serif italic text-base font-bold text-[#4A1525] mt-1">{prod.name}</h3>
                           </div>
                           
-                          <p className="text-[11px] text-neutral-200 leading-relaxed font-light font-serif italic">
+                          <p className="text-[11px] text-neutral-600 leading-relaxed font-light font-serif italic">
                             {prod.description}
                           </p>
 
                           <div className="space-y-1.5">
-                            <span className="block text-[8px] uppercase tracking-widest text-[#D4AF37] font-bold">Standard Sizing Available</span>
+                            <span className="block text-[8px] uppercase tracking-widest text-[#B76E79] font-bold">Standard Sizing Available</span>
                             <div className="flex gap-1.5">
                               {['XS', 'S', 'M', 'L', 'XL'].map(sz => (
-                                <span key={sz} className="text-[9px] font-mono border border-white/20 text-white px-2 py-0.5 rounded">
+                                <span key={sz} className="text-[9px] font-mono border border-neutral-300 text-neutral-700 px-2 py-0.5 rounded bg-white/50">
                                   {sz}
                                 </span>
                               ))}
@@ -1085,13 +1316,13 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="space-y-3 pt-3 border-t border-[#D4AF37]/25">
+                        <div className="space-y-3 pt-3 border-t border-[#D4AF37]/35">
                           <div className="flex justify-between items-end">
                             <div>
                               <span className="text-[9px] text-neutral-400 line-through block font-mono">Catalog: ₹{prod.price.toLocaleString('en-IN')}</span>
-                              <span className="text-base font-extrabold text-[#D4AF37] font-mono">Promo: ₹{item.offerPrice.toLocaleString('en-IN')}</span>
+                              <span className="text-base font-extrabold text-[#4A1525] font-mono">Promo: ₹{item.offerPrice.toLocaleString('en-IN')}</span>
                             </div>
-                            <span className="text-[9px] bg-emerald-950 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-800">
+                            <span className="text-[9px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded border border-emerald-200">
                               SAVE 20%
                             </span>
                           </div>
@@ -1323,13 +1554,94 @@ export default function App() {
                 {trendingProducts.slice(0, 4).map((p) => (
                   <div 
                     key={p.id} 
-                    className="group bg-white rounded-2xl border border-neutral-100 overflow-hidden relative shadow-sm hover:shadow-lg transition-all duration-500 flex flex-col justify-between"
+                    className="group relative w-full h-[470px] [perspective:1200px] cursor-pointer"
+                    onClick={() => handleOpenProductDetailsPage(p)}
                   >
-                    
-                    {/* wishlist toggle */}
+                    {/* 3D Scene Wrapper */}
+                    <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateX(60deg)_rotateY(-10deg)_translateY(-30px)]">
+                      
+                      {/* 1. Base Card Background (Falls completely flat) */}
+                      <div className="absolute inset-0 bg-white rounded-2xl border border-neutral-100 shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateX(90deg)] group-hover:shadow-xl z-10">
+                        {/* Back decoration that becomes visible on horizontal plane */}
+                        <div className="absolute inset-0 bg-[#FAF5EF]/95 rounded-2xl border border-[#D4AF37]/20 [transform:rotateX(0deg)] [backface-visibility:hidden] flex items-center justify-center p-6">
+                          <div className="border border-[#D4AF37]/15 m-2 inset-0 absolute rounded-xl pointer-events-none"></div>
+                        </div>
+                      </div>
+
+                      {/* 2. Image Background Box (Falls flat along with base card) */}
+                      <div className="absolute top-4 left-4 right-4 h-64 rounded-xl bg-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(2px)] z-15">
+                        <div className="absolute inset-0 bg-[#4A1525]/5 rounded-xl"></div>
+                      </div>
+
+                      {/* 3. Image Foreground (Stands up straight, popping out of the card with traveling RGB glow border) */}
+                      <div 
+                        onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                        className="absolute top-4 left-4 right-4 h-64 rounded-xl overflow-hidden transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(35px)_translateY(-40px)] z-25"
+                      >
+                        {/* Traveling RGB border background */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl p-[2px] bg-black overflow-hidden z-0">
+                          <div className="absolute inset-[-200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7700,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] animate-[spin_4s_linear_infinite]" />
+                        </div>
+
+                        {/* Inner content wrapper (holds image, stock) */}
+                        <div className="absolute inset-[2px] bg-neutral-100 rounded-xl overflow-hidden z-10">
+                          <img 
+                            src={p.images[0]} 
+                            alt={p.name} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 rounded-xl" 
+                          />
+                          {p.stock <= 3 && (
+                            <div className="absolute bottom-3 left-3 bg-[#4A1525] text-white text-[8px] font-mono tracking-widest px-2.5 py-1 uppercase rounded-md font-bold shadow-md">
+                              ONLY {p.stock} ATELIER PIECES LEFT
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 4. Details Background Box (Falls flat along with base card) */}
+                      <div className="absolute bottom-4 left-4 right-4 h-32 bg-neutral-50 rounded-xl border border-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(4px)] z-15"></div>
+
+                      {/* 5. Details Content Card (Stands up straight, popping forward) */}
+                      <div className="absolute bottom-4 left-4 right-4 p-5 bg-white border border-neutral-100 rounded-xl shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(65px)_translateY(-15px)] group-hover:bg-[#FAF5EF] group-hover:border-[#D4AF37]/35 group-hover:shadow-xl z-30">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <span className="text-[9px] uppercase font-bold tracking-widest text-[#B76E79] font-mono">{p.category}</span>
+                            <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                              <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
+                              <span className={`text-[10px] font-mono ${theme.text} font-semibold`}>{p.rating}</span>
+                            </div>
+                          </div>
+                          
+                          <h4 
+                            onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                            className={`font-serif italic text-base font-bold ${theme.text} cursor-pointer hover:text-[#D4AF37] transition-all truncate`}
+                          >
+                            {p.name}
+                          </h4>
+
+                          {p.designerName && (
+                            <p className="text-[11px] text-[#8E7868] font-serif italic">Curated by {p.designerName}</p>
+                          )}
+
+                          <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                            <p className={`text-sm font-bold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleAddToCart(p, p.sizes?.[0] || 'M'); }}
+                              className="text-[10px] uppercase font-bold text-[#D4AF37] hover:text-[#B76E79] transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>Enlist Bag</span>
+                              <ArrowRight size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Wishlist toggle button (positioned absolutely outside 3D rotation for flawless interactivity) */}
                     <motion.button 
-                      onClick={() => handleToggleWishlist(p.id)}
-                      className="absolute top-4 right-4 z-20 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
+                      onClick={(e) => { e.stopPropagation(); handleToggleWishlist(p.id); }}
+                      className="absolute top-8 right-8 z-40 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
                       whileHover={{ scale: 1.15 }}
                       whileTap={{ scale: 0.85 }}
                       animate={wishlist.includes(p.id) ? {
@@ -1339,55 +1651,6 @@ export default function App() {
                     >
                       <Heart size={14} className={wishlist.includes(p.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
                     </motion.button>
-
-                    <div 
-                      onClick={() => handleOpenProductDetails(p)}
-                      className="cursor-pointer overflow-hidden bg-neutral-100 h-96 relative"
-                    >
-                      <img 
-                        src={p.images[0]} 
-                        alt={p.name} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
-                      />
-                      {p.stock <= 3 && (
-                        <div className="absolute bottom-3 left-3 bg-[#4A1525] text-white text-[8px] font-mono tracking-widest px-2.5 py-1 uppercase rounded-md font-bold shadow-md">
-                          ONLY {p.stock} ATELIER PIECES LEFT
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-5 space-y-2">
-                      <div className="flex justify-between items-start">
-                        <span className="text-[9px] uppercase font-bold tracking-widest text-[#B76E79] font-mono">{p.category}</span>
-                        <div className="flex items-center gap-1.5 text-xs text-neutral-500">
-                          <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
-                          <span className={`text-[10px] font-mono ${theme.text} font-semibold`}>{p.rating}</span>
-                        </div>
-                      </div>
-                      
-                      <h4 
-                        onClick={() => handleOpenProductDetails(p)}
-                        className={`font-serif italic text-base font-bold ${theme.text} cursor-pointer hover:text-[#D4AF37] transition-all truncate`}
-                      >
-                        {p.name}
-                      </h4>
-
-                      {p.designerName && (
-                        <p className="text-[11px] text-neutral-400 font-serif italic">Curated by {p.designerName}</p>
-                      )}
-
-                      <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
-                        <p className={`text-sm font-bold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
-                        <button
-                          onClick={() => handleAddToCart(p, p.sizes?.[0] || 'M')}
-                          className="text-[10px] uppercase font-bold text-[#D4AF37] hover:text-[#B76E79] transition-all flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Enlist Bag</span>
-                          <ArrowRight size={11} />
-                        </button>
-                      </div>
-                    </div>
-
                   </div>
                 ))}
               </div>
@@ -2477,7 +2740,344 @@ export default function App() {
           />
         )}
 
+        {/* 8. DETAILED PRODUCT PAGE */}
+        {activeTab === 'product-detail' && detailedProduct && (
+          <motion.div
+            key="product-detail"
+            initial={{ opacity: 0, y: 15, scale: 0.995 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -15, scale: 0.995 }}
+            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16"
+          >
+            {/* Elegant Header with Back Button */}
+            <div className="gsap-reveal-header opacity-0 flex items-center justify-between mb-10 border-b border-[#D4AF37]/25 pb-6">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setActiveTab('home')}
+                  className="flex items-center gap-2 text-xs uppercase tracking-widest font-bold text-[#B76E79] hover:text-[#4A1525] transition-all cursor-pointer bg-white px-5 py-2.5 border rounded-full hover:bg-neutral-50 shadow-sm animate-luxury-reveal"
+                >
+                  ← Back to Home
+                </button>
+                <span className="text-xs font-mono text-neutral-300">|</span>
+                <span className="text-xs uppercase tracking-wider font-mono text-neutral-500">
+                  Maison Salon / {detailedProduct.category} / {detailedProduct.name}
+                </span>
+              </div>
+            </div>
 
+            {/* Product Details Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mb-16">
+              
+              {/* Left Column: Product Image Gallery & Zoom */}
+              <div className="lg:col-span-6 space-y-6 gsap-reveal-gallery opacity-0">
+                <div 
+                  className="h-96 md:h-[550px] w-full bg-neutral-100 rounded-2xl overflow-hidden border border-neutral-150 relative cursor-zoom-in shadow-md"
+                  onClick={() => setIsZoomed(!isZoomed)}
+                >
+                  <img 
+                    src={detailedProduct.images?.[detailImageIdx] || detailedProduct.images?.[0]} 
+                    alt={detailedProduct.name}
+                    className={`w-full h-full object-cover transition-transform duration-300 ${isZoomed ? 'scale-150' : 'scale-100'}`} 
+                  />
+                  {detailedProduct.category === 'Premium Limited Editions' && (
+                    <div className="absolute top-6 left-6 bg-gradient-to-r from-[#BF953F] to-[#AA771C] text-[#4A1525] text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-md shadow-md">
+                      CERTIFIED EXCLUSIVE
+                    </div>
+                  )}
+                </div>
+
+                {/* Thumbnails list */}
+                <div className="flex gap-4">
+                  {detailedProduct.images?.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => { setDetailImageIdx(idx); setIsZoomed(false); localStorage.setItem('anvaa_detail_image_idx', String(idx)); }}
+                      className={`h-20 w-16 rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${detailImageIdx === idx ? 'border-[#D4AF37] scale-105 shadow' : 'border-neutral-200 hover:border-neutral-300'}`}
+                    >
+                      <img src={img} className="w-full h-full object-cover" alt="thumbnail" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Configuration & Sizing Details */}
+              <div className="lg:col-span-6 space-y-6 bg-white p-8 md:p-10 rounded-2xl border border-neutral-100 shadow-md">
+                <div className="space-y-3">
+                  <span className="gsap-reveal-text opacity-0 text-[10px] uppercase font-bold tracking-widest text-[#B76E79] font-mono block">
+                    {detailedProduct.category}
+                  </span>
+                  <h2 className="gsap-reveal-text opacity-0 text-3xl lg:text-4xl font-serif italic text-[#4A1525] font-extrabold tracking-tight">
+                    {detailedProduct.name}
+                  </h2>
+                  
+                  {detailedProduct.designerName && (
+                    <p className="gsap-reveal-text opacity-0 text-xs text-[#D4AF37] font-serif italic">
+                      Designed in atelier by master {detailedProduct.designerName}
+                    </p>
+                  )}
+
+                  <div className="gsap-reveal-text opacity-0 flex items-center gap-2 text-sm text-neutral-500 font-mono pt-1">
+                    <Star size={14} className="fill-[#D4AF37] text-[#D4AF37]" />
+                    <span className="text-[#4A1525] font-bold text-xs">{detailedProduct.rating} Stars average rating</span>
+                  </div>
+
+                  <p className="gsap-reveal-text opacity-0 text-2xl font-extrabold text-[#4A1525] font-mono pt-2">₹{detailedProduct.price.toLocaleString('en-IN')}</p>
+                  
+                  <div className="gsap-reveal-text opacity-0 h-[1px] bg-neutral-100 my-4" />
+
+                  <p className="gsap-reveal-text opacity-0 text-sm font-light leading-relaxed text-neutral-600 font-serif italic">
+                    {detailedProduct.description}
+                  </p>
+                </div>
+
+                <div className="gsap-reveal-text opacity-0 h-[1px] bg-neutral-100" />
+
+                {/* Sizing list */}
+                <div className="gsap-reveal-text opacity-0 space-y-3">
+                  <span className="block text-[10px] uppercase tracking-wider font-bold text-neutral-400">Atelier Sizing (In Millimeters)</span>
+                  <div className="flex flex-wrap gap-2.5">
+                    {detailedProduct.sizes?.map((sz) => (
+                      <button
+                        key={sz}
+                        onClick={() => { setDetailSize(sz); localStorage.setItem('anvaa_detail_size', sz); }}
+                        className={`px-4 py-2 rounded-lg text-xs tracking-widest font-bold border transition-all cursor-pointer ${
+                          detailSize === sz 
+                            ? 'bg-[#4A1525] text-white border-[#4A1525] shadow-sm' 
+                            : 'bg-white text-neutral-600 border-neutral-200 hover:border-[#D4AF37]'
+                        }`}
+                      >
+                        {sz}
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => { setActiveTab('designers'); }}
+                      className="border border-dashed border-[#D4AF37] text-[#D4AF37] px-4 py-2 rounded-lg text-xs tracking-widest uppercase font-bold hover:bg-neutral-50 cursor-pointer transition-colors"
+                    >
+                      Bespoke Fit Service
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="gsap-reveal-text opacity-0 pt-6 border-t border-neutral-100 flex gap-4">
+                  <button
+                    onClick={() => {
+                      handleAddToCart(detailedProduct, detailSize);
+                    }}
+                    className="flex-1 bg-gradient-to-r from-[#4A1525] to-[#6A162B] hover:opacity-95 text-[#FAF9F6] py-4 text-xs uppercase font-bold tracking-widest transition-all cursor-pointer shadow-md rounded-xl relative group overflow-hidden"
+                  >
+                    {/* Gold shimmer effect on hover */}
+                    <div className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-[#D4AF37]/20 to-transparent skew-x-[-25deg] translate-x-[-150%] group-hover:translate-x-[250%] transition-transform duration-[1200ms] ease-out pointer-events-none" />
+                    ADD TO MY BAG
+                  </button>
+                  <motion.button
+                    onClick={() => handleToggleWishlist(detailedProduct.id)}
+                    className="p-4 border border-neutral-200 rounded-xl text-neutral-600 hover:text-[#B76E79] cursor-pointer bg-neutral-50/50 hover:bg-white transition-all shadow-sm"
+                    title="Toggle Favorite"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    animate={wishlist.includes(detailedProduct.id) ? {
+                      scale: [1, 1.25, 0.95, 1.15, 0.98, 1],
+                    } : { scale: 1 }}
+                    transition={{ duration: 0.55, ease: "easeInOut" }}
+                  >
+                    <Heart size={18} className={wishlist.includes(detailedProduct.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
+                  </motion.button>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Section: Review Submission & Critique Feed */}
+            <div className="bg-gradient-to-br from-[#FAF8F5] via-[#FFFDFB] to-[#F5EFE6] border border-[#D4AF37]/35 rounded-3xl p-8 md:p-12 space-y-12 shadow-md">
+              <div className="gsap-reveal-critique-form opacity-0 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                
+                {/* Form column */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div>
+                    <h3 className="text-xl font-serif italic text-[#4A1525] font-bold mb-2">Refined Critique Submission</h3>
+                    <p className="text-xs text-neutral-500">Share your feedback regarding fabric weave, stitching, drape, and custom fit to help our design salon.</p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-neutral-400 uppercase font-black tracking-wider block">Star Score</label>
+                        <select 
+                          className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] transition-all"
+                          value={reviewRating}
+                          onChange={(e) => setReviewRating(Number(e.target.value))}
+                        >
+                          <option value="5">★★★★★ Exceptional (5)</option>
+                          <option value="4">★★★★ Very Fine (4)</option>
+                          <option value="3">★★★ Acceptable (3)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-neutral-400 uppercase font-black tracking-wider block">Your Name / Title</label>
+                        <input 
+                          type="text" 
+                          placeholder="e.g. Premium Client (optional)"
+                          className="w-full bg-white border border-neutral-200 rounded-xl p-3 text-xs outline-none focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] transition-all"
+                          value={reviewName}
+                          onChange={(e) => setReviewName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Animal spirit guide selector with springy 3D effects */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-neutral-400 uppercase font-black tracking-wider block">Select Atelier Spirit Animal</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                        {(['peacock', 'swan', 'leopard', 'lion', 'fox', 'tiger', 'panda', 'wolf'] as const).map((animal) => {
+                          const temp = ANIMAL_TEMPLATES[animal];
+                          const isSelected = selectedAnimal === animal;
+                          return (
+                            <motion.button
+                              key={animal}
+                              type="button"
+                              onClick={(e) => {
+                                setSelectedAnimal(animal);
+                                triggerMascotSparkles(temp.emoji, e, 7);
+                              }}
+                              onMouseEnter={(e) => {
+                                triggerMascotSparkles(temp.emoji, e, 2);
+                              }}
+                              whileHover={{ 
+                                scale: 1.06, 
+                                rotateY: 12, 
+                                rotateX: -8,
+                                z: 15,
+                                boxShadow: "0 10px 20px rgba(212,175,55,0.12)"
+                              }}
+                              whileTap={{ scale: 0.96, rotateY: 0, rotateX: 0 }}
+                              transition={{ type: "spring", stiffness: 350, damping: 15 }}
+                              style={{ transformStyle: 'preserve-3d', perspective: 400 }}
+                              className={`p-3 rounded-xl border text-xs font-bold flex items-center justify-between cursor-pointer transition-colors ${
+                                isSelected
+                                  ? `${temp.bg} ${temp.border} ${temp.text} ring-2 ring-[#D4AF37] shadow-sm`
+                                  : 'bg-white/80 border-neutral-200 text-neutral-600'
+                              }`}
+                            >
+                              <span className="select-none">{temp.name.split(' ')[1]}</span>
+                              <span 
+                                className="text-base select-none pointer-events-none" 
+                                style={{ transform: 'translateZ(18px)', display: 'inline-block' }}
+                              >
+                                {temp.emoji}
+                              </span>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-neutral-400 uppercase font-black tracking-wider block">Critique Comments</label>
+                      <textarea
+                        placeholder="Write your comments regarding fabric weave, stitches, and drape..."
+                        className="w-full bg-white border border-neutral-200 rounded-xl p-4 text-xs outline-none min-h-[100px] resize-y focus:ring-1 focus:ring-[#D4AF37] focus:border-[#D4AF37] transition-all"
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      onClick={() => handleSubmitReview(detailedProduct.id)}
+                      className="bg-[#D4AF37] hover:bg-[#C29E30] text-[#4A1525] px-6 py-3.5 rounded-xl text-xs font-bold uppercase transition-all cursor-pointer shadow-sm gold-glow-button hover:scale-[1.02]"
+                    >
+                      Enlist Critique
+                    </button>
+                  </div>
+                </div>
+
+                {/* Live Preview column */}
+                <div className="lg:col-span-5 space-y-3 lg:border-l lg:border-[#D4AF37]/15 lg:pl-8 h-full flex flex-col justify-center">
+                  <span className="text-[10px] text-neutral-400 uppercase font-black tracking-wider block">Critique Card Live Preview</span>
+                  <div className={`p-6 pr-32 rounded-2xl border transition-all duration-300 relative shadow-md w-full min-h-[180px] flex flex-col justify-between overflow-hidden ${ANIMAL_TEMPLATES[selectedAnimal].bg} ${ANIMAL_TEMPLATES[selectedAnimal].border} ${ANIMAL_TEMPLATES[selectedAnimal].text}`}>
+                    {/* Large Static Mascot in the right half */}
+                    <div className="absolute -right-2 bottom-1 text-[100px] md:text-[120px] opacity-100 select-none pointer-events-none">
+                      {ANIMAL_TEMPLATES[selectedAnimal].emoji}
+                    </div>
+                    <div className="space-y-3 z-10">
+                      <div className="flex justify-between items-start pr-4">
+                        <div>
+                          <h5 className="text-xs font-bold font-mono">{reviewName || currentUser?.name || "Premium Client"}</h5>
+                          <span className="text-[9px] opacity-60 font-mono block mt-0.5">Today (Live Preview)</span>
+                        </div>
+                        <div className="flex text-[#D4AF37] text-xs">
+                          {Array.from({ length: reviewRating }).map((_, i) => (
+                            <Star key={i} size={10} className="fill-[#D4AF37] text-[#D4AF37]" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs font-serif italic leading-relaxed min-h-[50px] whitespace-pre-wrap pr-2">
+                        {reviewComment || "Write comments regarding fabric weave, stitches, and drape to preview here..."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="h-[1px] bg-[#D4AF37]/15" />
+
+              {/* Reviews List */}
+              <div className="gsap-reveal-reviews-list space-y-6">
+                <h3 className="text-lg font-serif italic text-[#4A1525] font-bold">Client Testimonials & Critiques</h3>
+                {detailedProduct.reviews && detailedProduct.reviews.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {detailedProduct.reviews.map((rev: any) => {
+                      const getAnimal = (userName: string, id: string) => {
+                        if (userName.includes('🦚')) return 'peacock';
+                        if (userName.includes('🦢')) return 'swan';
+                        if (userName.includes('🐆')) return 'leopard';
+                        if (userName.includes('🦁')) return 'lion';
+                        if (userName.includes('🦊')) return 'fox';
+                        if (userName.includes('🐯')) return 'tiger';
+                        if (userName.includes('🐼')) return 'panda';
+                        if (userName.includes('🐺')) return 'wolf';
+                        const hash = (id || userName).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                        return (['peacock', 'swan', 'leopard', 'lion', 'fox', 'tiger', 'panda', 'wolf'] as const)[hash % 8];
+                      };
+
+                      const animalKey = getAnimal(rev.userName, rev.id || rev._id);
+                      const template = ANIMAL_TEMPLATES[animalKey];
+
+                      return (
+                        <div 
+                          key={rev.id || rev._id} 
+                          className={`gsap-reveal-review-card opacity-0 p-6 pr-32 rounded-2xl border transition-all duration-300 relative shadow-sm hover:shadow-md space-y-3 overflow-hidden min-h-[150px] ${template.bg} ${template.border} ${template.text}`}
+                        >
+                          {/* Large Static Mascot in the right half */}
+                          <div className="absolute -right-2 bottom-1 text-[100px] md:text-[120px] opacity-100 select-none pointer-events-none" title={template.name}>
+                            {template.emoji}
+                          </div>
+                          
+                          <div className="flex justify-between items-start pr-4 z-10 relative">
+                            <div>
+                              <h5 className="text-xs font-bold font-mono">{rev.userName}</h5>
+                              <span className="text-[9px] opacity-60 font-mono block mt-0.5">{rev.date}</span>
+                            </div>
+                            <div className="flex text-[#D4AF37] text-xs">
+                              {Array.from({ length: rev.rating }).map((_, i) => (
+                                <Star key={i} size={10} className="fill-[#D4AF37] text-[#D4AF37]" />
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-xs font-serif italic leading-relaxed z-10 relative pr-2 whitespace-pre-wrap">{rev.comment}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-neutral-400 font-serif italic">No critiques have been submitted for this masterwork yet. Be the first to submit a critique.</p>
+                )}
+              </div>
+            </div>
+
+          </motion.div>
+        )}
 
         </AnimatePresence>
 
@@ -2487,7 +3087,7 @@ export default function App() {
       <Footer setActiveTab={setActiveTab} />
 
       {/* LUXURY PRODUCT DETAIL MODAL OVERLAY */}
-      {selectedProduct && (
+      {selectedProduct && activeTab !== 'product-detail' && (
         <div className="fixed inset-0 bg-[#4A1525]/30 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#FAF9F6] text-[#4A1525] rounded-2xl overflow-hidden max-w-5xl w-full max-h-[90vh] overflow-y-auto border border-[#D4AF37]/35 shadow-2xl relative grid grid-cols-1 md:grid-cols-12 animate-luxury-reveal">
             
@@ -2666,238 +3266,157 @@ export default function App() {
         theme={theme}
       />
 
-      {/* LUXURY CART BAG SIDEBAR OVERLAY */}
-      {isCartOpen && (
-        <div className="fixed inset-0 bg-[#4A1525]/30 backdrop-blur-sm z-50 flex justify-end">
-          <div className={`bg-[#FAF9F6] text-[#4A1525] w-full h-full flex flex-col justify-between border-l border-[#D4AF37]/35 shadow-2xl p-6 relative animate-luxury-reveal transition-all duration-300 ${
-            isCheckoutMode ? 'max-w-md md:max-w-3xl' : 'max-w-md'
-          }`}>
-            
-            {/* Header */}
-            <div className="flex justify-between items-center border-b border-[#D4AF37]/25 pb-4 mb-4">
-              <h3 className="font-serif italic text-2xl text-[#4A1525] font-extrabold">My Selection Bag</h3>
-              <button 
-                onClick={() => { setIsCartOpen(false); setIsCheckoutMode(false); }}
-                className="p-1.5 border hover:bg-neutral-50 rounded-full cursor-pointer text-xs"
-              >
-                ✕ CLOSE
-              </button>
-            </div>
+      {/* LUXURY CART BAG CENTURED 3D MODAL OVERLAY */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <div className="fixed inset-0 bg-[#051C18]/40 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0" 
+              onClick={() => { setIsCartOpen(false); setIsCheckoutMode(false); }}
+            ></div>
 
-            {/* Content Body */}
-            {cart.length === 0 && !isCheckoutMode ? (
-              <div className="text-center py-24 select-none space-y-4 flex-1 flex flex-col justify-center">
-                <div className="w-12 h-12 rounded-full border border-neutral-200 flex items-center justify-center mx-auto text-neutral-400">
-                  <ShoppingBag size={20} />
+            {/* Cartier Emerald Centered Modal Box */}
+            <motion.div 
+              initial={{ opacity: 0, x: 250, rotateY: -45, scale: 0.85 }}
+              animate={{ opacity: 1, x: 0, rotateY: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 250, rotateY: 45, scale: 0.85 }}
+              transition={{ type: "spring", stiffness: 280, damping: 22 }}
+              className={`bg-[#F4F8F7] text-[#0B2B25] w-full h-[85vh] max-h-[750px] flex flex-col md:flex-row justify-between border border-[#D4AF37]/35 shadow-2xl relative rounded-3xl overflow-hidden z-10 [perspective:1200px] [transform-style:preserve-3d] ${
+                isCheckoutMode ? 'max-w-5xl' : 'max-w-4xl'
+              }`}
+            >
+              
+              {/* Left Editorial Panel - Visible on Desktop, Hidden in Checkout mode or mobile */}
+              {!isCheckoutMode && (
+                <div className="hidden md:flex md:w-[42%] bg-gradient-to-br from-[#0A2E28] via-[#0D483E] to-[#051C18] text-[#FAF5EF] p-8 flex-col justify-between relative overflow-hidden border-r border-[#D4AF37]/25">
+                  {/* Sparkle animations background */}
+                  <div className="absolute top-10 left-10 w-2 h-2 bg-[#D4AF37] rounded-full opacity-60 animate-float-sparkle-1"></div>
+                  <div className="absolute bottom-20 right-10 w-3.5 h-3.5 bg-[#D4AF37] rounded-full opacity-40 animate-float-sparkle-2"></div>
+                  <div className="absolute top-1/2 left-1/3 w-1.5 h-1.5 bg-[#D4AF37] rounded-full opacity-50 animate-float-sparkle-3"></div>
+
+                  {/* Gold brand border frame */}
+                  <div className="border border-[#D4AF37]/20 absolute inset-4 rounded-2xl pointer-events-none"></div>
+
+                  <div className="z-10 mt-10 space-y-4">
+                    <span className="text-[10px] uppercase tracking-[0.4em] font-black text-[#D4AF37] block">ANVAA ATELIER</span>
+                    <h4 className="text-3xl font-serif italic font-extrabold text-white leading-tight">
+                      Your Curated Selection
+                    </h4>
+                    <p className="text-xs text-[#FAF5EF]/75 font-serif italic leading-relaxed">
+                      "Real luxury is custom-made. Sourced directly from our award-winning weavers."
+                    </p>
+                  </div>
+
+                  <div className="z-10 space-y-4">
+                    <div className="h-px bg-[#D4AF37]/25 w-12"></div>
+                    <p className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-bold">
+                      Bespoke Sizing & Tailoring
+                    </p>
+                    <p className="text-[9px] text-[#FAF5EF]/60 leading-relaxed max-w-xs">
+                      Every piece in your selection bag can be customized to your exact measurements via our real-time Atelier Chat.
+                    </p>
+                  </div>
                 </div>
-                <p className="italic text-neutral-400 text-xs font-serif">Your bespoke luxury collection bag is currently empty.</p>
-              </div>
-            ) : (
-              !isCheckoutMode ? (
-                // Standard Cart View (Single Column layout)
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                  <div className="space-y-4 overflow-y-auto pr-1 flex-1 max-h-[55vh]">
-                    {cart.map((item, idx) => (
-                      <div key={idx} className="flex gap-4 p-3 bg-white border border-neutral-100 rounded-lg hover:shadow-sm transition-all items-center">
-                        <img src={item.product?.images?.[0]} className="w-14 h-16 object-cover rounded" />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-serif italic text-xs font-bold text-[#4A1525] truncate">{item?.product?.name}</p>
-                          <p className="text-[10px] text-neutral-500 mt-0.5">Size Selected: <strong className="text-[#4A1525]">{item.selectedSize}</strong></p>
-                          {item.customMeasurements && (
-                            <p className="text-[9px] text-[#B76E79] font-mono mt-0.5 truncate" title={item.customMeasurements}>
-                              Bespoke: {item.customMeasurements}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-1">
-                            <button 
-                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity - 1, item.customMeasurements)}
-                              className="w-5 h-5 border rounded flex items-center justify-center font-bold text-xs"
+              )}
+
+              {/* Right Panel (Content Panel) */}
+              <div className="flex-1 h-full flex flex-col justify-between p-6 overflow-hidden">
+                {/* Header */}
+                <div className="flex justify-between items-center border-b border-[#0D483E]/20 pb-4 mb-4">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag size={18} className="text-[#0D483E]" />
+                    <h3 className="font-serif italic text-2xl text-[#0B2B25] font-extrabold">My Selection Bag</h3>
+                  </div>
+                  <button 
+                    onClick={() => { setIsCartOpen(false); setIsCheckoutMode(false); }}
+                    className="px-3 py-1.5 border border-[#0D483E]/15 hover:bg-neutral-100 rounded-full cursor-pointer text-[10px] font-bold tracking-widest uppercase text-[#0B2B25] hover:text-[#0D483E] hover:border-[#0D483E] transition-all"
+                  >
+                    ✕ CLOSE
+                  </button>
+                </div>
+
+                {/* Content Body */}
+                {cart.length === 0 && !isCheckoutMode ? (
+                  <div className="text-center py-24 select-none space-y-4 flex-1 flex flex-col justify-center">
+                    <div className="w-12 h-12 rounded-full border border-[#0D483E]/25 flex items-center justify-center mx-auto text-neutral-400">
+                      <ShoppingBag size={20} className="text-[#0D483E]/50" />
+                    </div>
+                    <p className="italic text-neutral-400 text-xs font-serif">Your bespoke luxury collection bag is currently empty.</p>
+                  </div>
+                ) : (
+                  !isCheckoutMode ? (
+                    // Standard Cart View (Single Column layout)
+                    <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                      <div className="space-y-4 overflow-y-auto pr-1 flex-1 max-h-[42vh]">
+                        <AnimatePresence mode="popLayout">
+                          {cart.map((item, idx) => (
+                            <motion.div 
+                              key={`${item.product.id}-${item.selectedSize}-${idx}`}
+                              layout
+                              initial={{ opacity: 0, y: 15 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.9, x: -35 }}
+                              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                              className="flex gap-4 p-3 bg-white border border-[#0D483E]/10 rounded-xl hover:shadow-md transition-all items-center"
                             >
-                              -
-                            </button>
-                            <span className="text-xs font-mono font-bold text-zinc-800">{item.quantity}</span>
-                            <button 
-                              onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity + 1, item.customMeasurements)}
-                              className="w-5 h-5 border rounded flex items-center justify-center font-bold text-xs"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs font-bold text-[#4A1525] font-mono">₹{(item.product?.price * item.quantity).toLocaleString()}</p>
+                              <img src={item.product?.images?.[0]} className="w-14 h-16 object-cover rounded-lg" />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-serif italic text-xs font-bold text-[#0B2B25] truncate">{item?.product?.name}</p>
+                                <p className="text-[10px] text-neutral-500 mt-0.5">Size Selected: <strong className="text-[#0D483E]">{item.selectedSize}</strong></p>
+                                {item.customMeasurements && (
+                                  <p className="text-[9px] text-[#0D483E]/70 font-mono mt-0.5 truncate" title={item.customMeasurements}>
+                                    Bespoke: {item.customMeasurements}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <button 
+                                    onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity - 1, item.customMeasurements)}
+                                    className="w-5 h-5 border border-neutral-200 rounded flex items-center justify-center font-bold text-xs hover:bg-[#0D483E]/10 cursor-pointer transition-all"
+                                  >
+                                    -
+                                  </button>
+                                  <span className="text-xs font-mono font-bold text-zinc-800">{item.quantity}</span>
+                                  <button 
+                                    onClick={() => handleUpdateCartQty(item.product.id, item.selectedSize, item.quantity + 1, item.customMeasurements)}
+                                    className="w-5 h-5 border border-neutral-200 rounded flex items-center justify-center font-bold text-xs hover:bg-[#0D483E]/10 cursor-pointer transition-all"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs font-bold text-[#0D483E] font-mono">₹{(item.product?.price * item.quantity).toLocaleString()}</p>
+                                <button
+                                  onClick={() => handleRemoveCartItem(item.product.id, item.selectedSize, item.customMeasurements)}
+                                  className="text-red-700 hover:text-red-900 mt-1 pointer text-[10px] uppercase font-bold"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Calculations and Actions footer for Cart View */}
+                      <div className="border-t border-[#0D483E]/20 pt-4 space-y-3 mt-4">
+                        <div className="flex gap-2 text-xs">
+                          <input
+                            type="text"
+                            placeholder="Elite Invite Code (try ANVAANEW)"
+                            className="flex-1 bg-white border border-[#0D483E]/20 rounded-lg p-2 outline-none focus:border-[#0D483E] transition-all"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value)}
+                          />
                           <button
-                            onClick={() => handleRemoveCartItem(item.product.id, item.selectedSize, item.customMeasurements)}
-                            className="text-red-700 hover:text-red-900 mt-1 pointer text-[10px] uppercase font-bold"
+                            onClick={applyPromo}
+                            className="bg-[#0D483E] hover:bg-[#0A2E28] border border-[#D4AF37]/35 text-white px-4 py-2 text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer rounded-lg shadow-sm gold-glow-button"
                           >
-                            Remove
+                            Apply
                           </button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
 
-                  {/* Calculations and Actions footer for Cart View */}
-                  <div className="border-t border-[#D4AF37]/30 pt-4 space-y-3 mt-4">
-                    <div className="flex gap-2 text-xs">
-                      <input
-                        type="text"
-                        placeholder="Elite Invite Code (try ANVAANEW)"
-                        className="flex-1 bg-white border p-2 outline-none focus:border-[#D4AF37]"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                      />
-                      <button
-                        onClick={applyPromo}
-                        className="bg-[#4A1525] hover:bg-[#6A162B] text-white px-4 py-2 text-[10px] font-bold uppercase transition-all tracking-wider cursor-pointer rounded-lg"
-                      >
-                        Apply
-                      </button>
-                    </div>
-
-                    <div className="text-xs space-y-1.5">
-                      <div className="flex justify-between">
-                        <span>Atelier Base Price:</span>
-                        <span className="font-mono">₹{cartSubtotal.toLocaleString('en-IN')}</span>
-                      </div>
-                      {couponDiscount > 0 && (
-                        <div className="flex justify-between text-emerald-700 font-semibold">
-                          <span>Invitation Promo Code:</span>
-                          <span className="font-mono">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span>Premium Insured Carrier:</span>
-                        <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
-                      </div>
-                      <div className="flex justify-between text-base font-extrabold text-[#4A1525] pt-2 border-t">
-                        <span>Total Valuation:</span>
-                        <span className="font-mono text-[#D4AF37]">₹{cartTotal.toLocaleString('en-IN')}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        if (!currentUser) {
-                          showToast("Please login first to enter checkout.", 'error');
-                          setIsCartOpen(false);
-                          setActiveTab('auth');
-                        } else {
-                          setIsCheckoutMode(true);
-                        }
-                      }}
-                      className="w-full bg-[#4A1525] hover:bg-[#6A162B] text-[#FAF9F6] py-3.5 text-xs font-black uppercase tracking-widest transition-all cursor-pointer rounded-lg text-center shadow-lg"
-                    >
-                      PROCEED TO COUTURE CHECKOUT
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                // Checkout Mode: Two-Column layout on laptops (md:grid-cols-12), Single-Column on mobile
-                <div className="flex-1 flex flex-col justify-between overflow-hidden">
-                  
-                  {/* Moving Ticker banner at the top of checkout */}
-                  <div className="luxury-marquee-container bg-[#FFFDF9] border border-[#D4AF37]/20 py-2 rounded-md mb-4 select-none">
-                    <div className="luxury-marquee-content text-[#AA771C] text-[10px] uppercase tracking-[0.15em] font-semibold inline-flex items-center gap-8">
-                      <span>✦ ENJOY 10% COMPLIMENTARY OFF FOR FIRST ORDER — CODE: <strong className="text-[#4A1525] font-bold">ANVAANEW</strong> ✦</span>
-                      <span className="text-[#D4AF37]">✦ ATELIER CUSTOM MEASUREMENTS AVAILABLE ON ALL DESIGNS ✦</span>
-                      <span className="opacity-80">✦ MUMBAI & NEW DELHI FLAGSHIPS CHIC LOUNGE Launching June 2026 ✦</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 overflow-y-auto pr-1">
-                    
-                    {/* Left Column: Delivery coordinates */}
-                    <div className="md:col-span-7 space-y-4">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b pb-1">DELIVERY COORDINATES</h4>
-                      
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-[9px] uppercase font-bold mb-1">Couture Recipient Name</label>
-                          <input
-                            type="text"
-                            required
-                            className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
-                            value={addressName}
-                            onChange={(e) => setAddressName(e.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] uppercase font-bold mb-1">Street Address, Flat / Villa No.</label>
-                          <input
-                            type="text"
-                            required
-                            className="w-full bg-white border p-2 text-xs outline-none focus:border-[#D4AF37]"
-                            value={addressStreet}
-                            onChange={(e) => setAddressStreet(e.target.value)}
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[9px] uppercase font-bold mb-1">City</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full bg-white border p-2 text-xs"
-                              value={addressCity}
-                              onChange={(e) => setAddressCity(e.target.value)}
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[9px] uppercase font-bold mb-1">Pincode Coordinate</label>
-                            <input
-                              type="text"
-                              required
-                              className="w-full bg-white border p-2 text-xs font-mono"
-                              value={addressPincode}
-                              onChange={(e) => setAddressPincode(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[9px] uppercase font-bold mb-1">Contact Phone</label>
-                          <input
-                            type="text"
-                            required
-                            className="w-full bg-white border p-2 text-xs font-mono"
-                            value={addressPhone}
-                            onChange={(e) => setAddressPhone(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right Column: Payment Gateway & Settlement summary */}
-                    <div className="md:col-span-5 flex flex-col justify-between space-y-4 md:border-l md:border-[#D4AF37]/20 md:pl-6">
-                      <div className="space-y-4">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b pb-1">SETTLEMENT & GATEWAY</h4>
-                        
-                        {/* Payment selections */}
-                        <div className="space-y-2">
-                          <label className="block text-[9px] uppercase font-bold mb-1">Select Solder-Secure Payment Gateway</label>
-                          <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-[#4A1525] uppercase tracking-wider">
-                            {[
-                              'Secure UPI Direct',
-                              'Mastercard / Visa VIP',
-                              'RuPay Corporate',
-                              'Net-Banking Gold'
-                            ].map(pay => (
-                              <button
-                                key={pay}
-                                type="button"
-                                onClick={() => setPaymentMethod(pay)}
-                                className={`cursor-pointer py-2 border rounded text-center transition-all ${paymentMethod === pay ? 'bg-[#4A1525] text-white border-[#4A1525]' : 'bg-white text-neutral-600 border-neutral-300'}`}
-                              >
-                                {pay}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Calculations & Action Buttons */}
-                      <div className="border-t border-[#D4AF37]/35 pt-4 space-y-4">
-                        {/* Subtotals */}
                         <div className="text-xs space-y-1.5">
                           <div className="flex justify-between">
                             <span>Atelier Base Price:</span>
@@ -2913,38 +3432,183 @@ export default function App() {
                             <span>Premium Insured Carrier:</span>
                             <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
                           </div>
-                          <div className="flex justify-between text-base font-extrabold text-[#4A1525] pt-2 border-t">
+                          <div className="flex justify-between text-base font-extrabold text-[#0B2B25] pt-2 border-t border-[#0D483E]/10">
                             <span>Total Valuation:</span>
-                            <span className="font-mono text-[#D4AF37]">₹{cartTotal.toLocaleString('en-IN')}</span>
+                            <span className="font-mono text-[#0D483E] text-lg">₹{cartTotal.toLocaleString('en-IN')}</span>
                           </div>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setIsCheckoutMode(false)}
-                            className="flex-1 border text-[#4A1525] hover:bg-neutral-100 py-3 text-[10px] uppercase font-bold tracking-widest cursor-pointer rounded-lg"
-                          >
-                            Back to Bag
-                          </button>
-                          <button
-                            onClick={handleCompleteOrder}
-                            className="flex-1 bg-[#D4AF37] hover:bg-amber-600 text-[#4A1525] py-3 text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer shadow-md rounded-lg"
-                          >
-                            SECURE AUTHORIZATION
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => {
+                            if (!currentUser) {
+                              showToast("Please login first to enter checkout.", 'error');
+                              setIsCartOpen(false);
+                              setActiveTab('auth');
+                            } else {
+                              setIsCheckoutMode(true);
+                            }
+                          }}
+                          className="w-full bg-[#0D483E] hover:bg-[#0A2E28] border border-[#D4AF37]/35 text-white py-3.5 text-xs font-black uppercase tracking-widest transition-all cursor-pointer rounded-xl text-center shadow-lg hover:shadow-xl gold-glow-button"
+                        >
+                          PROCEED TO COUTURE CHECKOUT
+                        </button>
                       </div>
                     </div>
+                  ) : (
+                    // Checkout Mode: Two-Column layout on laptops (md:grid-cols-12), Single-Column on mobile
+                    <div className="flex-1 flex flex-col justify-between overflow-hidden">
+                      
+                      {/* Moving Ticker banner at the top of checkout */}
+                      <div className="luxury-marquee-container bg-[#FFFDF9] border border-[#D4AF37]/20 py-2 rounded-md mb-4 select-none">
+                        <div className="luxury-marquee-content text-[#AA771C] text-[10px] uppercase tracking-[0.15em] font-semibold inline-flex items-center gap-8">
+                          <span>✦ ENJOY 10% COMPLIMENTARY OFF FOR FIRST ORDER — CODE: <strong className="text-[#0D483E] font-bold">ANVAANEW</strong> ✦</span>
+                          <span className="text-[#D4AF37]">✦ ATELIER CUSTOM MEASUREMENTS AVAILABLE ON ALL DESIGNS ✦</span>
+                          <span className="opacity-80">✦ MUMBAI & NEW DELHI FLAGSHIPS CHIC LOUNGE Launching June 2026 ✦</span>
+                        </div>
+                      </div>
 
-                  </div>
-                </div>
-              )
-            )}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 overflow-y-auto pr-1">
+                        
+                        {/* Left Column: Delivery coordinates */}
+                        <div className="md:col-span-7 space-y-4">
+                          <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b border-[#0D483E]/10 pb-1">DELIVERY COORDINATES</h4>
+                          
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-[9px] uppercase font-bold mb-1">Couture Recipient Name</label>
+                              <input
+                                type="text"
+                                required
+                                className="w-full bg-white border border-[#0D483E]/20 p-2 text-xs rounded-lg outline-none focus:border-[#0D483E]"
+                                value={addressName}
+                                onChange={(e) => setAddressName(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] uppercase font-bold mb-1">Street Address, Flat / Villa No.</label>
+                              <input
+                                type="text"
+                                required
+                                className="w-full bg-white border border-[#0D483E]/20 p-2 text-xs rounded-lg outline-none focus:border-[#0D483E]"
+                                value={addressStreet}
+                                onChange={(e) => setAddressStreet(e.target.value)}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[9px] uppercase font-bold mb-1">City</label>
+                                <input
+                                  type="text"
+                                  required
+                                  className="w-full bg-white border border-[#0D483E]/20 p-2 text-xs rounded-lg outline-none focus:border-[#0D483E]"
+                                  value={addressCity}
+                                  onChange={(e) => setAddressCity(e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[9px] uppercase font-bold mb-1">Pincode Coordinate</label>
+                                <input
+                                  type="text"
+                                  required
+                                  className="w-full bg-white border border-[#0D483E]/20 p-2 text-xs font-mono rounded-lg outline-none focus:border-[#0D483E]"
+                                  value={addressPincode}
+                                  onChange={(e) => setAddressPincode(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] uppercase font-bold mb-1">Contact Phone</label>
+                              <input
+                                type="text"
+                                required
+                                className="w-full bg-white border border-[#0D483E]/20 p-2 text-xs font-mono rounded-lg outline-none focus:border-[#0D483E]"
+                                value={addressPhone}
+                                onChange={(e) => setAddressPhone(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        </div>
 
+                        {/* Right Column: Payment Gateway & Settlement summary */}
+                        <div className="md:col-span-5 flex flex-col justify-between space-y-4 md:border-l md:border-[#0D483E]/10 md:pl-6">
+                          <div className="space-y-4">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#D4AF37] border-b border-[#0D483E]/10 pb-1">SETTLEMENT & GATEWAY</h4>
+                            
+                            {/* Payment selections */}
+                            <div className="space-y-2">
+                              <label className="block text-[9px] uppercase font-bold mb-1">Select Solder-Secure Payment Gateway</label>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-[#0B2B25] uppercase tracking-wider">
+                                {[
+                                  'Secure UPI Direct',
+                                  'Mastercard / Visa VIP',
+                                  'RuPay Corporate',
+                                  'Net-Banking Gold'
+                                ].map(pay => (
+                                  <button
+                                    key={pay}
+                                    type="button"
+                                    onClick={() => setPaymentMethod(pay)}
+                                    className={`cursor-pointer py-2 border rounded-lg text-center transition-all ${paymentMethod === pay ? 'bg-[#0D483E] text-white border-[#0D483E]' : 'bg-white text-neutral-600 border-neutral-300'}`}
+                                  >
+                                    {pay}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Calculations & Action Buttons */}
+                          <div className="border-t border-[#0D483E]/10 pt-4 space-y-4">
+                            {/* Subtotals */}
+                            <div className="text-xs space-y-1.5">
+                              <div className="flex justify-between">
+                                <span>Atelier Base Price:</span>
+                                <span className="font-mono">₹{cartSubtotal.toLocaleString('en-IN')}</span>
+                              </div>
+                              {couponDiscount > 0 && (
+                                <div className="flex justify-between text-emerald-700 font-semibold">
+                                  <span>Invitation Promo Code:</span>
+                                  <span className="font-mono">- ₹{calculatedDiscount.toLocaleString('en-IN')}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between">
+                                <span>Premium Insured Carrier:</span>
+                                <span className="font-mono">{deliveryFreight === 0 ? 'FREE DELIVERY' : `₹${deliveryFreight}`}</span>
+                              </div>
+                              <div className="flex justify-between text-base font-extrabold text-[#0B2B25] pt-2 border-t border-[#0D483E]/10">
+                                <span>Total Valuation:</span>
+                                <span className="font-mono text-[#0D483E]">₹{cartTotal.toLocaleString('en-IN')}</span>
+                              </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setIsCheckoutMode(false)}
+                                className="flex-1 border border-neutral-300 text-[#0B2B25] hover:bg-neutral-100 py-3 text-[10px] uppercase font-bold tracking-widest cursor-pointer rounded-lg"
+                              >
+                                Back to Bag
+                              </button>
+                              <button
+                                onClick={handleCompleteOrder}
+                                className="flex-1 bg-[#0D483E] hover:bg-[#0A2E28] border border-[#D4AF37]/35 text-white py-3 text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer shadow-md rounded-lg gold-glow-button"
+                              >
+                                SECURE AUTHORIZATION
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Custom luxury toast notification system */}
       <AnimatePresence>
@@ -2988,8 +3652,32 @@ export default function App() {
       {/* Page transition overlay */}
       <AnimatePresence mode="wait">
         {isTransitioning && (
-          <PageTransition key="transition-overlay" isVisible={isTransitioning} destinationTab={transitionTab} />
+          <PageTransition key="transition-overlay" isVisible={isTransitioning} destinationTab={transitionTab} customColorMood={customColorMood} />
         )}
+      </AnimatePresence>
+
+      {/* Critique Mascot Selector Floating Sparkles */}
+      <AnimatePresence>
+        {selectionSparkles.map((sp) => (
+          <motion.div
+            key={sp.id}
+            initial={{ opacity: 1, scale: sp.scale, x: sp.x, y: sp.y }}
+            animate={{ 
+              opacity: 0, 
+              scale: 0.2, 
+              x: sp.x + Math.cos(sp.angle) * 50, 
+              y: sp.y - 85 
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            onAnimationComplete={() => {
+              setSelectionSparkles(prev => prev.filter(item => item.id !== sp.id));
+            }}
+            className="fixed pointer-events-none text-xs z-[99999] select-none"
+          >
+            {sp.emoji}
+          </motion.div>
+        ))}
       </AnimatePresence>
 
     </div>

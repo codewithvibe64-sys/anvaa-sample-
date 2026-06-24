@@ -230,7 +230,7 @@
         "Free Size"
       ],
       "stock": 18,
-      "rating": 4.8,
+      "rating": 5,
       "isTrending": true
     },
     {
@@ -486,6 +486,14 @@
       "rating": 5,
       "comment": "An absolute masterpiece! Wore this for my sangeet and received hundreds of compliments. The gold thread is gorgeous.",
       "date": "2026-05-12"
+    },
+    {
+      "id": "rev_1782303922971",
+      "productId": "prod_casual_01",
+      "userName": "nabeen ",
+      "rating": 5,
+      "comment": "it quality way very nise ",
+      "date": "2026-06-24"
     }
   ],
   "wishlist": []

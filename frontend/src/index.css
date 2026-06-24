@@ -412,3 +412,33 @@ p.italic {
 .luxury-marquee-container:hover .luxury-marquee-content {
   animation-play-state: paused;
 }
+
+/* Gentle Floating and Scaling Anim for Mascot Animals */
+@keyframes mascot-float-gentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-12px) rotate(4deg) scale(1.06);
+  }
+}
+
+.animate-mascot-float-gentle {
+  animation: mascot-float-gentle 4.5s ease-in-out infinite;
+}
+
+/* Centered Floating and Scaling Anim for Mascot Backgrounds */
+@keyframes mascot-float-centered {
+  0%, 100% {
+    transform: translate(-50%, -50%) translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-12px) rotate(4deg) scale(1.06);
+  }
+}
+
+.animate-mascot-float-centered {
+  animation: mascot-float-centered 4.5s ease-in-out infinite;
+}
+
+
