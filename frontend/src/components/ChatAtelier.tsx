@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { Designer, ChatThread, ChatMessage } from '../types';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '';
+
 interface ChatAtelierProps {
   designers: Designer[];
   currentUser: any;
@@ -32,7 +34,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
     if (!currentUser) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/chats/${currentUser.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/chats/${currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
         setThreads(data);
@@ -85,7 +87,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
         sender: 'customer'
       };
 
-      const res = await fetch('/api/chats/message', {
+      const res = await fetch(`${API_BASE_URL}/api/chats/message`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -93,7 +95,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
 
       if (res.ok) {
         // Fetch updated threads
-        const updatedThreadRes = await fetch(`/api/chats/${currentUser.id}`);
+        const updatedThreadRes = await fetch(`${API_BASE_URL}/api/chats/${currentUser.id}`);
         if (updatedThreadRes.ok) {
           const freshThreads = await updatedThreadRes.json();
           setThreads(freshThreads);

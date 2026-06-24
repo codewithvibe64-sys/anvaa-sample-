@@ -16,6 +16,8 @@ interface AuthScreenProps {
   setShowProfileGuide: (show: boolean) => void;
 }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '';
+
 const authSlides = [
   {
     image: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=800",
@@ -59,7 +61,7 @@ export default function AuthScreen({
 
   const handleGoogleCredential = async (response: any) => {
     try {
-      const res = await fetch("/api/auth/google", {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential: response.credential })
@@ -128,7 +130,9 @@ export default function AuthScreen({
     }
 
     try {
-      const url = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+      const url = isRegisterMode 
+        ? `${API_BASE_URL}/api/auth/register` 
+        : `${API_BASE_URL}/api/auth/login`;
       const body = isRegisterMode 
         ? { email: authEmail, name: authName, phone: authPhone, password: authPassword }
         : { email: authEmail, password: authPassword };

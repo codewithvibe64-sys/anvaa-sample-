@@ -264,6 +264,8 @@ const getThemeClasses = (tab: string, customColorMood: string = 'rose') => {
   return baseTheme;
 };
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '';
+
 export default function App() {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -495,7 +497,7 @@ export default function App() {
     try {
       // Intentional subtle delay for elite shimmering feel
       await new Promise((resolve) => setTimeout(resolve, 750));
-      const res = await fetch('/api/products');
+      const res = await fetch(`${API_BASE_URL}/api/products`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data);
@@ -509,7 +511,7 @@ export default function App() {
 
   const fetchDesigners = async () => {
     try {
-      const res = await fetch('/api/designers');
+      const res = await fetch(`${API_BASE_URL}/api/designers`);
       if (res.ok) {
         const data = await res.json();
         setDesigners(data);
@@ -522,7 +524,7 @@ export default function App() {
   const fetchWishlist = async () => {
     try {
       if (currentUser) {
-        const res = await fetch(`/api/wishlist?userId=${currentUser._id || currentUser.id}`);
+        const res = await fetch(`${API_BASE_URL}/api/wishlist?userId=${currentUser._id || currentUser.id}`);
         if (res.ok) {
           const data = await res.json();
           setWishlist(data);
@@ -555,7 +557,7 @@ export default function App() {
       const savedProductId = localStorage.getItem('anvaa_selected_product_id');
       if (savedProductId) {
         try {
-          const res = await fetch(`/api/products/${savedProductId}`);
+          const res = await fetch(`${API_BASE_URL}/api/products/${savedProductId}`);
           if (res.ok) {
             const data = await res.json();
             setDetailedProduct(data);
@@ -736,7 +738,7 @@ export default function App() {
 
   const handleAutoLogin = async () => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'codewithvibe64@gmail.com' }) // VIP Member
@@ -767,7 +769,7 @@ export default function App() {
     try {
       // Intentional subtle delay for elite shimmering feel
       await new Promise((resolve) => setTimeout(resolve, 600));
-      const res = await fetch(`/api/orders/user/${currentUser.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/orders/user/${currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
         const sorted = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -798,7 +800,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/auth/update-profile', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/update-profile`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -843,7 +845,7 @@ export default function App() {
   const handleToggleWishlist = async (productId: string) => {
     try {
       if (currentUser) {
-        const res = await fetch('/api/wishlist/toggle', {
+        const res = await fetch(`${API_BASE_URL}/api/wishlist/toggle`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ productId, userId: currentUser._id || currentUser.id })
@@ -954,7 +956,7 @@ export default function App() {
     };
 
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetch(`${API_BASE_URL}/api/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -978,7 +980,7 @@ export default function App() {
   // Book physical or virtual consultation
   const handleBookConsultation = async (consultData: any): Promise<boolean> => {
     try {
-      const res = await fetch('/api/consultations', {
+      const res = await fetch(`${API_BASE_URL}/api/consultations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(consultData)
@@ -995,7 +997,7 @@ export default function App() {
   // Product reviews
   const handleSubmitReview = async (productId: string) => {
     try {
-      const res = await fetch(`/api/products/${productId}/review`, {
+      const res = await fetch(`${API_BASE_URL}/api/products/${productId}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1013,7 +1015,7 @@ export default function App() {
         setSelectedAnimal('peacock');
         if (activeTab === 'product-detail') {
           // Re-fetch detailed product
-          const detailRes = await fetch(`/api/products/${productId}`);
+          const detailRes = await fetch(`${API_BASE_URL}/api/products/${productId}`);
           if (detailRes.ok) {
             const data = await detailRes.json();
             setDetailedProduct(data);
