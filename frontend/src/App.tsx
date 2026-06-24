@@ -1025,41 +1025,84 @@ export default function App() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.6 }}
-                      className="group relative bg-white border border-[#D4AF37]/15 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                      className="group relative w-full h-[410px] [perspective:1000px] cursor-pointer"
                     >
-                      {/* Discount tag */}
-                      <div className="absolute top-4 left-4 z-10 bg-gradient-to-r from-[#BF953F] to-[#AA771C] text-[#4A1525] text-[8px] font-black tracking-widest px-2.5 py-1 uppercase rounded shadow">
-                        {item.discountLabel}
-                      </div>
-
-                      <div className="h-72 w-full overflow-hidden relative bg-neutral-100">
-                        <img 
-                          src={prod.images?.[0]} 
-                          alt={prod.name} 
-                          className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
-                        />
-                        <div className="absolute inset-0 bg-[#4A1525]/5 group-hover:bg-transparent transition-colors"></div>
-                      </div>
-
-                      <div className="p-5 flex-grow flex flex-col justify-between space-y-3">
-                        <div>
-                          <span className="text-[9px] font-mono text-[#B76E79] uppercase tracking-wider block mb-1">{prod.category}</span>
-                          <h3 className="font-serif italic text-base font-bold text-[#4A1525] line-clamp-1">{prod.name}</h3>
-                          <p className="text-[11px] text-neutral-500 font-light mt-1 line-clamp-2">{prod.description}</p>
+                      {/* Front Face: Image and Basic Details */}
+                      <div className="absolute inset-0 flex flex-col justify-between bg-white border border-[#D4AF37]/15 rounded-xl overflow-hidden shadow-sm transition-all duration-700 ease-out origin-center group-hover:[transform:rotateY(90deg)] group-hover:opacity-0 [backface-visibility:hidden] z-10">
+                        {/* Discount tag */}
+                        <div className="absolute top-4 left-4 z-20 bg-gradient-to-r from-[#BF953F] to-[#AA771C] text-[#4A1525] text-[8px] font-black tracking-widest px-2.5 py-1 uppercase rounded shadow">
+                          {item.discountLabel}
                         </div>
 
-                        <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                        <div className="h-64 w-full overflow-hidden bg-neutral-100 relative">
+                          <img 
+                            src={prod.images?.[0]} 
+                            alt={prod.name} 
+                            className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
+                          />
+                          <div className="absolute inset-0 bg-[#4A1525]/5"></div>
+                        </div>
+
+                        <div className="p-4 flex-grow flex flex-col justify-between">
                           <div>
-                            <span className="text-[10px] text-neutral-400 line-through block font-mono">₹{prod.price.toLocaleString('en-IN')}</span>
-                            <span className="text-sm font-extrabold text-[#D4AF37] font-mono">₹{item.offerPrice.toLocaleString('en-IN')}</span>
+                            <span className="text-[9px] font-mono text-[#B76E79] uppercase tracking-wider block mb-1">{prod.category}</span>
+                            <h3 className="font-serif italic text-sm font-bold text-[#4A1525] line-clamp-1">{prod.name}</h3>
                           </div>
+                          
+                          <div className="flex justify-between items-center pt-2 border-t border-neutral-100">
+                            <div>
+                              <span className="text-[9px] text-neutral-400 line-through block font-mono">₹{prod.price.toLocaleString('en-IN')}</span>
+                              <span className="text-xs font-extrabold text-[#D4AF37] font-mono">₹{item.offerPrice.toLocaleString('en-IN')}</span>
+                            </div>
+                            <span className="text-[9px] text-[#4A1525] font-black uppercase tracking-widest group-hover:text-[#D4AF37] transition-all">
+                              Hover to Customize →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Back Face: Detailed Customization Options */}
+                      <div className="absolute inset-0 p-6 flex flex-col justify-between bg-[#4A1525] border border-[#D4AF37]/35 rounded-xl shadow-lg transition-all duration-700 ease-out origin-center [transform:rotateY(-90deg)] opacity-0 group-hover:[transform:rotateY(0deg)] group-hover:opacity-100 [backface-visibility:hidden] z-20">
+                        <div className="space-y-4">
+                          <div className="border-b border-[#D4AF37]/25 pb-2">
+                            <span className="text-[8px] font-mono text-[#D4AF37] uppercase tracking-widest block">{prod.category} • ATELIER OFFERS</span>
+                            <h3 className="font-serif italic text-base font-bold text-white mt-1">{prod.name}</h3>
+                          </div>
+                          
+                          <p className="text-[11px] text-neutral-200 leading-relaxed font-light font-serif italic">
+                            {prod.description}
+                          </p>
+
+                          <div className="space-y-1.5">
+                            <span className="block text-[8px] uppercase tracking-widest text-[#D4AF37] font-bold">Standard Sizing Available</span>
+                            <div className="flex gap-1.5">
+                              {['XS', 'S', 'M', 'L', 'XL'].map(sz => (
+                                <span key={sz} className="text-[9px] font-mono border border-white/20 text-white px-2 py-0.5 rounded">
+                                  {sz}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 pt-3 border-t border-[#D4AF37]/25">
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <span className="text-[9px] text-neutral-400 line-through block font-mono">Catalog: ₹{prod.price.toLocaleString('en-IN')}</span>
+                              <span className="text-base font-extrabold text-[#D4AF37] font-mono">Promo: ₹{item.offerPrice.toLocaleString('en-IN')}</span>
+                            </div>
+                            <span className="text-[9px] bg-emerald-950 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-800">
+                              SAVE 20%
+                            </span>
+                          </div>
+
                           <button
                             onClick={() => {
                               const discountedProd = { ...prod, price: item.offerPrice };
                               handleAddToCart(discountedProd, prod.sizes?.[0] || 'M');
                               showToast(`${prod.name} (Promo Offer) added to your selection bag.`, 'success');
                             }}
-                            className={`${theme.buttonPrimary} text-[9px] font-bold uppercase tracking-widest px-3 py-2 rounded transition-all duration-300`}
+                            className={`${theme.buttonPrimary} w-full py-2.5 text-[9px] font-bold uppercase tracking-widest rounded transition-all duration-300`}
                           >
                             Add to Bag
                           </button>
