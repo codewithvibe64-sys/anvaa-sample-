@@ -17,7 +17,7 @@
           "phone": "+91 98765 43210"
         }
       ],
-      "createdAt": "2026-06-23T08:53:00.321Z"
+      "createdAt": "2026-07-12T08:13:00.793Z"
     }
   ],
   "designers": [
@@ -117,6 +117,30 @@
       ],
       "rating": 4.7,
       "reviewsCount": 110,
+      "consultationFee": 3000
+    },
+    {
+      "id": "designer_1783844496645",
+      "email": "viji@gmail.com",
+      "password": "$2b$10$5mzNGW82PambbyWiS86zl.JdHY8z94VO1sfFAMSsSnQ4JXfLzDcSG",
+      "name": "viji",
+      "specialty": "weeding dresses",
+      "city": "Kanchipuram",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400",
+      "coverImage": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800",
+      "bio": "viji is an elite premium designer specializing in weeding dresses based in Kanchipuram.",
+      "achievements": [
+        "ANVAA Couture Elite Artisan Empaneled",
+        "Showcased at Atelier Studio Opening 2026"
+      ],
+      "history": [
+        {
+          "year": "2026",
+          "event": "Joined the ANVAA Maison luxury collection."
+        }
+      ],
+      "rating": 5,
+      "reviewsCount": 0,
       "consultationFee": 3000
     }
   ],
@@ -230,7 +254,7 @@
         "Free Size"
       ],
       "stock": 18,
-      "rating": 5,
+      "rating": 4.8,
       "isTrending": true
     },
     {
@@ -471,10 +495,68 @@
           "id": "msg_init_1",
           "sender": "designer",
           "content": "Welcome to ANVAA, Vasantika. I am Aditi. I look forward to telling premium stories through your attire. How can I guide you today? Would you like a wedding design consultation or custom sizing advice?",
-          "timestamp": "2026-06-23T08:53:00.322Z"
+          "timestamp": "2026-07-12T08:13:00.794Z"
         }
       ],
-      "lastUpdated": "2026-06-23T08:53:00.322Z"
+      "lastUpdated": "2026-07-12T08:13:00.794Z"
+    },
+    {
+      "id": "chat_user_1783842373284_designer_1783844496645",
+      "customerId": "user_1783842373284",
+      "customerName": "Nabeen Melvin. R",
+      "designerId": "designer_1783844496645",
+      "designerName": "viji",
+      "messages": [
+        {
+          "id": "msg_1783844521257",
+          "sender": "customer",
+          "content": "hello viji ",
+          "timestamp": "2026-07-12T08:22:01.257Z"
+        },
+        {
+          "id": "msg_1783844554076",
+          "sender": "designer",
+          "content": "yes mr melvin ",
+          "timestamp": "2026-07-12T08:22:34.076Z"
+        },
+        {
+          "id": "msg_1783844573166",
+          "sender": "customer",
+          "content": "I’m looking to customize the sleeve drapes and body fitting of a wedding Lehenga. Can we arrange custom measurements?",
+          "timestamp": "2026-07-12T08:22:53.166Z"
+        },
+        {
+          "id": "msg_1783844604705",
+          "sender": "designer",
+          "content": "that cool i will set some szing ",
+          "timestamp": "2026-07-12T08:23:24.705Z"
+        },
+        {
+          "id": "msg_1783852580834",
+          "sender": "customer",
+          "content": "so then have the issues ",
+          "timestamp": "2026-07-12T10:36:20.834Z"
+        },
+        {
+          "id": "msg_1783852598925",
+          "sender": "designer",
+          "content": "not at all is fine ",
+          "timestamp": "2026-07-12T10:36:38.925Z"
+        },
+        {
+          "id": "msg_1783853000500",
+          "sender": "designer",
+          "content": "re",
+          "timestamp": "2026-07-12T10:43:20.500Z"
+        },
+        {
+          "id": "msg_1783853029443",
+          "sender": "designer",
+          "content": "right now work creactly crcy ",
+          "timestamp": "2026-07-12T10:43:49.444Z"
+        }
+      ],
+      "lastUpdated": "2026-07-12T10:43:49.444Z"
     }
   ],
   "consultations": [],
@@ -486,14 +568,6 @@
       "rating": 5,
       "comment": "An absolute masterpiece! Wore this for my sangeet and received hundreds of compliments. The gold thread is gorgeous.",
       "date": "2026-05-12"
-    },
-    {
-      "id": "rev_1782303922971",
-      "productId": "prod_casual_01",
-      "userName": "nabeen ",
-      "rating": 5,
-      "comment": "it quality way very nise ",
-      "date": "2026-06-24"
     }
   ],
   "wishlist": []

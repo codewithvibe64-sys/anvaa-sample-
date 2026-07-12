@@ -6,11 +6,67 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Sparkles, User, RefreshCw, Volume2, ShieldCheck, 
-  CornerDownRight, Check, MessageSquare
+  CornerDownRight, Check, MessageSquare, Link2
 } from 'lucide-react';
 import { Designer, ChatThread, ChatMessage } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '';
+
+// Rich Media Link Parser Helper
+const renderMessageContent = (content: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/gi;
+  
+  if (!urlRegex.test(content)) {
+    return <p className="font-medium whitespace-pre-line text-xs">{content}</p>;
+  }
+
+  const parts = content.split(urlRegex);
+  return (
+    <div className="space-y-3">
+      <p className="font-medium whitespace-pre-line text-xs">
+        {parts.map((part, index) => {
+          if (part.match(urlRegex)) {
+            return (
+              <a 
+                key={index} 
+                href={part} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-[#D4AF37] hover:underline font-mono inline-flex items-center gap-1 break-all"
+              >
+                <Link2 size={10} className="inline" />
+                {part}
+              </a>
+            );
+          }
+          return part;
+        })}
+      </p>
+
+      {/* Render previews for found media */}
+      {content.match(urlRegex)?.map((url, index) => {
+        const cleanUrl = url.split('?')[0].toLowerCase();
+        const isImage = cleanUrl.match(/\.(jpeg|jpg|gif|png|webp)/) || url.includes('unsplash.com/photo-');
+        const isVideo = cleanUrl.match(/\.(mp4|mov|webm)/);
+
+        if (isImage) {
+          return (
+            <div key={index} className="mt-2 rounded-xl overflow-hidden border border-black/10 max-w-sm shadow-md">
+              <img src={url} alt="Shared asset preview" className="w-full h-48 object-cover" />
+            </div>
+          );
+        } else if (isVideo) {
+          return (
+            <div key={index} className="mt-2 rounded-xl overflow-hidden border border-black/10 max-w-sm shadow-md bg-black">
+              <video src={url} controls className="w-full max-h-56 object-contain" />
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+};
 
 interface ChatAtelierProps {
   designers: Designer[];
@@ -26,15 +82,18 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
   const [loading, setLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef(0);
+  const prevThreadIdRef = useRef('');
 
   const activeDesigner = designers.find(d => d.id === selectedDesignerId) || designers[0];
 
   // Fetch threads for this user
-  const fetchThreads = async () => {
+  const fetchThreads = async (silent = false) => {
     if (!currentUser) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/chats/${currentUser.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/chats/${currentUser.id}?cb=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setThreads(data);
@@ -45,25 +104,54 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
     } catch (e) {
       console.error("Failed to load customer atelier chats", e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
+  // Setup auto-polling for customer messages
   useEffect(() => {
     if (currentUser) {
       if (!selectedDesignerId && designers.length > 0) {
         setSelectedDesignerId(designers[0].id);
       }
+      
       fetchThreads();
+
+      // Poll every 1 second to fetch designer replies in real-time
+      const interval = setInterval(() => {
+        fetchThreads(true);
+      }, 1000);
+
+      return () => clearInterval(interval);
     }
   }, [currentUser, selectedDesignerId]);
 
-  // Scroll to bottom helper
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [threads, selectedDesignerId]);
-
   const activeThread = threads.find(t => t.designerId === selectedDesignerId);
+
+  // Scroll to bottom helper (Scrolls only when initial loading, user sends a message, or is already at the bottom)
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const currentMsgCount = activeThread?.messages.length || 0;
+    const isNewThread = prevThreadIdRef.current !== selectedDesignerId;
+    const isNewMessage = currentMsgCount > prevMsgCountRef.current;
+
+    // Check if the user is already scrolled close to the bottom (within 100px threshold)
+    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+
+    // Check if the last message was sent by the customer (me)
+    const lastMsg = activeThread?.messages[currentMsgCount - 1];
+    const sentByMe = lastMsg && lastMsg.sender === 'customer';
+
+    if (isNewThread || (isNewMessage && (isAtBottom || sentByMe))) {
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // Save current states to refs for the next poll comparison
+    prevMsgCountRef.current = currentMsgCount;
+    prevThreadIdRef.current = selectedDesignerId;
+  }, [threads, selectedDesignerId, activeThread]);
 
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || inputText;
@@ -162,15 +250,15 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
       </div>
 
       {/* Main chat box container */}
-      <div className="bg-white border border-[#D4AF37]/25 rounded-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 h-[650px] shadow-sm">
+      <div className="bg-white border border-[#D4AF37]/25 rounded-2xl lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 h-auto lg:h-[650px] shadow-sm">
         
         {/* Left Side: Designer Channels */}
-        <div className="lg:col-span-4 border-r border-[#D4AF37]/20 flex flex-col bg-[#FAF9F6]/30">
+        <div className="lg:col-span-4 lg:border-r border-[#D4AF37]/20 flex flex-col bg-[#FAF9F6]/30 border-b lg:border-b-0">
           <div className="p-4 border-b border-neutral-100 bg-white">
             <p className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">Atelier Channels Available</p>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="h-[220px] lg:h-[520px] overflow-y-auto p-4 space-y-3">
             {designers.map((d) => {
               const hasThread = threads.find(t => t.designerId === d.id);
               const lastMsg = hasThread?.messages[hasThread.messages.length - 1];
@@ -204,7 +292,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
           <div className="p-4 border-t bg-white flex items-center justify-between">
             <span className="text-[10px] text-neutral-400 font-mono">CLIENT: {currentUser.name}</span>
             <button 
-              onClick={fetchThreads}
+              onClick={() => fetchThreads()}
               className="text-xs text-[#D4AF37] hover:text-[#B76E79] transition-all font-semibold flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> Sync Logs
@@ -230,7 +318,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div ref={messagesContainerRef} className="h-[400px] lg:h-[450px] overflow-y-auto p-6 space-y-4">
             
             {/* AI Disclaimer / Intro */}
             <div className="bg-[#FAF9F6] border border-[#D4AF37]/25 p-4 rounded-xl text-xs space-y-2 max-w-xl mx-auto text-neutral-600 leading-relaxed font-light mb-6">
@@ -253,7 +341,7 @@ export default function ChatAtelier({ designers, currentUser, setActiveTab }: Ch
                       ? 'bg-[#4A1525] text-[#FAF9F6] rounded-tr-none' 
                       : 'bg-[#FAF9F6] text-[#4A1525] border border-[#D4AF37]/20 rounded-tl-none font-serif italic'
                   }`}>
-                    <p className="font-medium whitespace-pre-line">{msg.content}</p>
+                    {renderMessageContent(msg.content)}
                     <span className="block text-[8px] mt-1 text-right text-neutral-400 font-mono">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>

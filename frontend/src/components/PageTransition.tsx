@@ -13,13 +13,7 @@ interface PageTransitionProps {
   customColorMood?: string;
 }
 
-const DRESS_IMAGES: Record<string, string> = {
-  home: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?q=80&w=600", // Pink designer dress
-  collections: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=600", // Elegant gold dress
-  designers: "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?q=80&w=600", // Luxury haute couture model
-  chat: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600", // Royal silk drape
-  dashboard: "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?q=80&w=600" // Structured gown
-};
+
 
 const TAB_TITLES: Record<string, string> = {
   home: "ANVAA MAISON",
@@ -38,7 +32,6 @@ const MOOD_BG_COLORS: Record<string, string> = {
 };
 
 export default function PageTransition({ isVisible, destinationTab, customColorMood = 'gold' }: PageTransitionProps) {
-  const dressImage = DRESS_IMAGES[destinationTab] || DRESS_IMAGES.home;
   const tabTitle = TAB_TITLES[destinationTab] || "ANVAA MAISON";
 
   const bgGradient = MOOD_BG_COLORS[customColorMood] || MOOD_BG_COLORS.gold;
@@ -192,23 +185,12 @@ export default function PageTransition({ isVisible, destinationTab, customColorM
                 y: { delay: 0.35, duration: 0.75, ease: [0.34, 1.3, 0.64, 1] },
                 boxShadow: { repeat: Infinity, duration: 3.5, ease: "easeInOut" }
               }}
-              className="flex flex-col items-center gap-3.5 bg-[#FAF9F6] p-4 rounded-xl border border-[#D4AF37]/35 w-[250px] md:w-[280px]"
+              className="flex flex-col items-center gap-2 bg-[#FAF9F6] px-8 py-4 rounded-xl border border-[#D4AF37]/35 shadow-2xl"
             >
-              {/* Parallax Dress Crop Container */}
-              <div className="w-full h-[180px] md:h-[210px] overflow-hidden rounded-lg relative bg-neutral-100 border border-neutral-100">
-                <motion.div
-                  initial={{ y: "15%", scale: 1.1 }}
-                  animate={{ y: "0%", scale: 1.0 }}
-                  transition={{ delay: 0.45, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                  className="absolute inset-0 bg-cover bg-center filter saturate-[0.85]"
-                  style={{ backgroundImage: `url(${dressImage})` }}
-                />
-              </div>
-
               {/* Gold Typography details */}
-              <div className="text-center mt-0.5">
-                <span className="text-[8px] tracking-[0.35em] uppercase text-[#D4AF37] font-bold block">
-                  Entering
+              <div className="text-center">
+                <span className="text-[8px] tracking-[0.4em] uppercase text-[#D4AF37] font-bold block mb-1">
+                  ENTERING SALON
                 </span>
                 <h2 className="text-sm font-serif italic text-[#4A1525] uppercase tracking-wider font-black">
                   {tabTitle}

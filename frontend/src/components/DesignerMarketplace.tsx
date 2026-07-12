@@ -212,6 +212,22 @@ export default function DesignerMarketplace({
               </div>
             </div>
 
+            {/* Visual Portfolio Lookbook */}
+            {activeDesigner.portfolio && activeDesigner.portfolio.length > 0 && (
+              <div className="mb-8 select-none">
+                <h3 className={`text-xs uppercase tracking-[0.2em] ${theme.accentText} font-black border-b ${theme.borderColor} pb-2 mb-4`}>
+                  Atelier Visual Lookbook
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {activeDesigner.portfolio.map((imgUrl, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden aspect-video border border-black/10 shadow-sm relative group cursor-zoom-in bg-slate-100">
+                      <img src={imgUrl} alt="Lookbook design creation" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Curated Products by Designer */}
             {designerProducts.length > 0 && (
               <div className="mb-10">

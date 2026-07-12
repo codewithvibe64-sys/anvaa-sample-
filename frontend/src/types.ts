@@ -36,6 +36,7 @@ export interface Designer {
   reviewsCount: number;
   avatar: string;
   coverImage: string;
+  portfolio?: string[];
   specialty: string;
   consultationFee: number;
 }

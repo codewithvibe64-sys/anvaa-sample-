@@ -24,6 +24,7 @@ import ChatAtelier from './components/ChatAtelier';
 import TrackingDocketModal from './components/TrackingDocketModal';
 import { Product, Designer, CartItem, Order, Consultation, Review } from './types';
 import AuthScreen from './components/AuthScreen';
+import CollectionsCatalog from './components/CollectionsCatalog';
 
 
 const ANIMAL_TEMPLATES = {
@@ -275,6 +276,13 @@ export default function App() {
   });
 
   const [activeTab, rawSetActiveTab] = useState<string>(() => {
+    const isNewSession = !sessionStorage.getItem('anvaa_session_active');
+    if (isNewSession) {
+      sessionStorage.setItem('anvaa_session_active', 'true');
+      localStorage.setItem('anvaa_active_tab', 'home');
+      return 'home';
+    }
+
     const savedTab = localStorage.getItem('anvaa_active_tab');
     if (savedTab) {
       const savedUser = localStorage.getItem('anvaa_user');
@@ -430,6 +438,51 @@ export default function App() {
       scale: Math.random() * 0.35 + 0.65
     }));
     setSelectionSparkles(prev => [...prev, ...newSparkles]);
+  };
+
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xc = rect.width / 2;
+    const yc = rect.height / 2;
+    const dx = (x - xc) / xc;
+    const dy = (y - yc) / yc;
+
+    // Upright position + cursor follow
+    const rotateY = (dx * 15).toFixed(1);
+    const rotateX = (-dy * 15).toFixed(1);
+
+    card.style.setProperty('--card-rotate-x', `${rotateX}deg`);
+    card.style.setProperty('--card-rotate-y', `${rotateY}deg`);
+    card.style.setProperty('--card-rotate-z', '0deg');
+    card.style.setProperty('--card-translate-z', '50px');
+    card.style.setProperty('--card-scale', '1.05');
+
+    // Details drawer open
+    card.style.setProperty('--details-rotate-x', '0deg');
+    card.style.setProperty('--details-translate-z', '0px');
+    card.style.setProperty('--details-opacity', '1');
+
+    card.style.transition = 'transform 0.1s ease-out, box-shadow 0.15s ease-out';
+  };
+
+  const handleCardMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const card = e.currentTarget;
+    // Settle back to default isometric tilt
+    card.style.setProperty('--card-rotate-x', '12deg');
+    card.style.setProperty('--card-rotate-y', '-12deg');
+    card.style.setProperty('--card-rotate-z', '2deg');
+    card.style.setProperty('--card-translate-z', '0px');
+    card.style.setProperty('--card-scale', '1');
+
+    // Details drawer close
+    card.style.setProperty('--details-rotate-x', '-30deg');
+    card.style.setProperty('--details-translate-z', '-20px');
+    card.style.setProperty('--details-opacity', '0.7');
+
+    card.style.transition = 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s ease-out';
   };
 
   const [isZoomed, setIsZoomed] = useState(false);
@@ -644,6 +697,52 @@ export default function App() {
     }
   }, [activeTab]);
 
+  // GSAP 3D Entrance reveal animations for Collections catalog page
+  useEffect(() => {
+    if (activeTab === 'collections' && products.length > 0) {
+      const timer = setTimeout(() => {
+        // Staggered reveal of collections card deck in 3D
+        if (document.querySelectorAll('.gsap-collections-card').length > 0) {
+          const cards = document.querySelectorAll('.gsap-collections-card');
+          cards.forEach(card => {
+            const el = card as HTMLElement;
+            el.style.setProperty('--card-rotate-x', '12deg');
+            el.style.setProperty('--card-rotate-y', '-12deg');
+            el.style.setProperty('--card-rotate-z', '2deg');
+            el.style.setProperty('--card-translate-z', '0px');
+            el.style.setProperty('--card-scale', '1');
+            el.style.setProperty('--details-rotate-x', '-30deg');
+            el.style.setProperty('--details-translate-z', '-20px');
+            el.style.setProperty('--details-opacity', '0.7');
+          });
+
+          gsap.fromTo('.gsap-collections-card', 
+            { 
+              opacity: 0, 
+              y: 80, 
+              rotateX: 30, 
+              rotateY: -20, 
+              z: -150 
+            }, 
+            { 
+              opacity: 1, 
+              y: 0, 
+              rotateX: 12, 
+              rotateY: -12, 
+              z: 0, 
+              duration: 1.0, 
+              stagger: 0.08, 
+              ease: "power3.out",
+              clearProps: "transform"
+            }
+          );
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, products]);
+
   // Elegant GSAP Scroll-Reveal animations for Product Details page
   useEffect(() => {
     if (activeTab === 'product-detail' && detailedProduct) {
@@ -769,7 +868,7 @@ export default function App() {
     try {
       // Intentional subtle delay for elite shimmering feel
       await new Promise((resolve) => setTimeout(resolve, 600));
-      const res = await fetch(`${API_BASE_URL}/api/orders/user/${currentUser.id}`);
+      const res = await fetch(`${API_BASE_URL}/api/orders/user/${currentUser._id || currentUser.id}`);
       if (res.ok) {
         const data = await res.json();
         const sorted = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -937,7 +1036,7 @@ export default function App() {
     }
 
     const payload = {
-      userId: currentUser.id,
+      userId: currentUser._id || currentUser.id,
       items: cart,
       subtotal: cartSubtotal,
       discount: calculatedDiscount,
@@ -1228,6 +1327,347 @@ export default function App() {
                 ))}
               </motion.div>
             </section>
+
+            {/* Curated Dress Sections by Category */}
+            {products.length > 0 && (
+              <>
+                {/* 1. Wedding Dress Collection */}
+                <section className="max-w-7xl mx-auto px-6 lg:px-12 py-12 border-t border-[#D4AF37]/15">
+                  <motion.div 
+                    className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-3"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <div>
+                      <span className="text-[10px] id-section uppercase tracking-[0.3em] font-black text-[#D4AF37] block">THE BRIDAL SALON</span>
+                      <h2 className={`text-3xl lg:text-4xl font-serif italic ${theme.text}`}>Wedding Dress Collection</h2>
+                    </div>
+                    <button 
+                      onClick={() => { setFilterCategory('Wedding Collection'); setActiveTab('collections'); }}
+                      className="text-xs uppercase tracking-widest font-bold underline underline-offset-4 hover:text-[#D4AF37] transition-all cursor-pointer text-[#B76E79]"
+                    >
+                      View All Bridal Pieces
+                    </button>
+                  </motion.div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {products.filter(p => p.category === 'Wedding Collection').slice(0, 4).map((p) => (
+                      <div 
+                        key={p.id} 
+                        className="group relative w-full h-[470px] [perspective:1200px] cursor-pointer"
+                        onClick={() => handleOpenProductDetailsPage(p)}
+                      >
+                        <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateX(60deg)_rotateY(-10deg)_translateY(-30px)]">
+                          <div className="absolute inset-0 bg-white rounded-2xl border border-neutral-100 shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateX(90deg)] group-hover:shadow-xl z-10">
+                            <div className="absolute inset-0 bg-[#FAF5EF]/95 rounded-2xl border border-[#D4AF37]/20 [transform:rotateX(0deg)] [backface-visibility:hidden] flex items-center justify-center p-6">
+                              <div className="border border-[#D4AF37]/15 m-2 inset-0 absolute rounded-xl pointer-events-none"></div>
+                            </div>
+                          </div>
+
+                          <div className="absolute top-4 left-4 right-4 h-64 rounded-xl bg-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(2px)] z-15">
+                            <div className="absolute inset-0 bg-[#4A1525]/5 rounded-xl"></div>
+                          </div>
+
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                            className="absolute top-4 left-4 right-4 h-64 rounded-xl overflow-hidden transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(35px)_translateY(-40px)] z-25"
+                          >
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl p-[2px] bg-black overflow-hidden z-0">
+                              <div className="absolute inset-[-200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7700,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] animate-[spin_4s_linear_infinite]" />
+                            </div>
+
+                            <div className="absolute inset-[2px] bg-neutral-100 rounded-xl overflow-hidden z-10">
+                              <img 
+                                src={p.images[0]} 
+                                alt={p.name} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 rounded-xl" 
+                              />
+                              {p.stock <= 3 && (
+                                <div className="absolute bottom-3 left-3 bg-[#4A1525] text-white text-[8px] font-mono tracking-widest px-2.5 py-1 uppercase rounded-md font-bold shadow-md">
+                                  ONLY {p.stock} ATELIER PIECES LEFT
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="absolute bottom-4 left-4 right-4 h-32 bg-neutral-50 rounded-xl border border-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(4px)] z-15"></div>
+
+                          <div className="absolute bottom-4 left-4 right-4 p-5 bg-white border border-neutral-100 rounded-xl shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(65px)_translateY(-15px)] group-hover:bg-[#FAF5EF] group-hover:border-[#D4AF37]/35 group-hover:shadow-xl z-30">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <span className="text-[9px] uppercase font-bold tracking-widest text-[#B76E79] font-mono">{p.category}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                                  <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
+                                  <span className={`text-[10px] font-mono ${theme.text} font-semibold`}>{p.rating}</span>
+                                </div>
+                              </div>
+                              
+                              <h4 
+                                onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                                className={`font-serif italic text-base font-bold ${theme.text} cursor-pointer hover:text-[#D4AF37] transition-all truncate`}
+                              >
+                                {p.name}
+                              </h4>
+
+                              {p.designerName && (
+                                <p className="text-[11px] text-[#8E7868] font-serif italic">Curated by {p.designerName}</p>
+                              )}
+
+                              <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                                <p className={`text-sm font-bold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAddToCart(p, p.sizes?.[0] || 'M'); }}
+                                  className="text-[10px] uppercase font-bold text-[#D4AF37] hover:text-[#B76E79] transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>Enlist Bag</span>
+                                  <ArrowRight size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <motion.button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(p.id); }}
+                          className="absolute top-8 right-8 z-40 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.85 }}
+                          animate={wishlist.includes(p.id) ? { scale: [1, 1.45, 0.9, 1.25, 0.95, 1] } : { scale: 1 }}
+                        >
+                          <Heart size={13} className={wishlist.includes(p.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
+                        </motion.button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* 2. Office Wear Collection */}
+                <section className="max-w-7xl mx-auto px-6 lg:px-12 py-12 border-t border-[#D4AF37]/15">
+                  <motion.div 
+                    className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-3"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <div>
+                      <span className="text-[10px] id-section uppercase tracking-[0.3em] font-black text-[#D4AF37] block">STRUCTURED CREPES</span>
+                      <h2 className={`text-3xl lg:text-4xl font-serif italic ${theme.text}`}>Office Wear Collection</h2>
+                    </div>
+                    <button 
+                      onClick={() => { setFilterCategory('Office Wear'); setActiveTab('collections'); }}
+                      className="text-xs uppercase tracking-widest font-bold underline underline-offset-4 hover:text-[#D4AF37] transition-all cursor-pointer text-[#B76E79]"
+                    >
+                      View All Office Wear
+                    </button>
+                  </motion.div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {products.filter(p => p.category === 'Office Wear').slice(0, 4).map((p) => (
+                      <div 
+                        key={p.id} 
+                        className="group relative w-full h-[470px] [perspective:1200px] cursor-pointer"
+                        onClick={() => handleOpenProductDetailsPage(p)}
+                      >
+                        <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateX(60deg)_rotateY(-10deg)_translateY(-30px)]">
+                          <div className="absolute inset-0 bg-white rounded-2xl border border-neutral-100 shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateX(90deg)] group-hover:shadow-xl z-10">
+                            <div className="absolute inset-0 bg-[#FAF5EF]/95 rounded-2xl border border-[#D4AF37]/20 [transform:rotateX(0deg)] [backface-visibility:hidden] flex items-center justify-center p-6">
+                              <div className="border border-[#D4AF37]/15 m-2 inset-0 absolute rounded-xl pointer-events-none"></div>
+                            </div>
+                          </div>
+
+                          <div className="absolute top-4 left-4 right-4 h-64 rounded-xl bg-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(2px)] z-15">
+                            <div className="absolute inset-0 bg-[#4A1525]/5 rounded-xl"></div>
+                          </div>
+
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                            className="absolute top-4 left-4 right-4 h-64 rounded-xl overflow-hidden transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(35px)_translateY(-40px)] z-25"
+                          >
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl p-[2px] bg-black overflow-hidden z-0">
+                              <div className="absolute inset-[-200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7700,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] animate-[spin_4s_linear_infinite]" />
+                            </div>
+
+                            <div className="absolute inset-[2px] bg-neutral-100 rounded-xl overflow-hidden z-10">
+                              <img 
+                                src={p.images[0]} 
+                                alt={p.name} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 rounded-xl" 
+                              />
+                              {p.stock <= 3 && (
+                                <div className="absolute bottom-3 left-3 bg-[#4A1525] text-white text-[8px] font-mono tracking-widest px-2.5 py-1 uppercase rounded-md font-bold shadow-md">
+                                  ONLY {p.stock} ATELIER PIECES LEFT
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="absolute bottom-4 left-4 right-4 h-32 bg-neutral-50 rounded-xl border border-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(4px)] z-15"></div>
+
+                          <div className="absolute bottom-4 left-4 right-4 p-5 bg-white border border-neutral-100 rounded-xl shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(65px)_translateY(-15px)] group-hover:bg-[#FAF5EF] group-hover:border-[#D4AF37]/35 group-hover:shadow-xl z-30">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <span className="text-[9px] uppercase font-bold tracking-widest text-[#B76E79] font-mono">{p.category}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                                  <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
+                                  <span className={`text-[10px] font-mono ${theme.text} font-semibold`}>{p.rating}</span>
+                                </div>
+                              </div>
+                              
+                              <h4 
+                                onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                                className={`font-serif italic text-base font-bold ${theme.text} cursor-pointer hover:text-[#D4AF37] transition-all truncate`}
+                              >
+                                {p.name}
+                              </h4>
+
+                              {p.designerName && (
+                                <p className="text-[11px] text-[#8E7868] font-serif italic">Curated by {p.designerName}</p>
+                              )}
+
+                              <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                                <p className={`text-sm font-bold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAddToCart(p, p.sizes?.[0] || 'M'); }}
+                                  className="text-[10px] uppercase font-bold text-[#D4AF37] hover:text-[#B76E79] transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>Enlist Bag</span>
+                                  <ArrowRight size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <motion.button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(p.id); }}
+                          className="absolute top-8 right-8 z-40 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.85 }}
+                          animate={wishlist.includes(p.id) ? { scale: [1, 1.45, 0.9, 1.25, 0.95, 1] } : { scale: 1 }}
+                        >
+                          <Heart size={13} className={wishlist.includes(p.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
+                        </motion.button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* 3. Classic & Casual Wear Collection */}
+                <section className="max-w-7xl mx-auto px-6 lg:px-12 py-12 border-t border-[#D4AF37]/15">
+                  <motion.div 
+                    className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-3"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <div>
+                      <span className="text-[10px] id-section uppercase tracking-[0.3em] font-black text-[#D4AF37] block">EFFORTLESS CASUALS</span>
+                      <h2 className={`text-3xl lg:text-4xl font-serif italic ${theme.text}`}>Classic & Casual Collection</h2>
+                    </div>
+                    <button 
+                      onClick={() => { setFilterCategory('Casual Wear'); setActiveTab('collections'); }}
+                      className="text-xs uppercase tracking-widest font-bold underline underline-offset-4 hover:text-[#D4AF37] transition-all cursor-pointer text-[#B76E79]"
+                    >
+                      View All Classic Wear
+                    </button>
+                  </motion.div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {products.filter(p => p.category === 'Casual Wear').slice(0, 4).map((p) => (
+                      <div 
+                        key={p.id} 
+                        className="group relative w-full h-[470px] [perspective:1200px] cursor-pointer"
+                        onClick={() => handleOpenProductDetailsPage(p)}
+                      >
+                        <div className="relative w-full h-full transition-all duration-700 [transform-style:preserve-3d] group-hover:[transform:rotateX(60deg)_rotateY(-10deg)_translateY(-30px)]">
+                          <div className="absolute inset-0 bg-white rounded-2xl border border-neutral-100 shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateX(90deg)] group-hover:shadow-xl z-10">
+                            <div className="absolute inset-0 bg-[#FAF5EF]/95 rounded-2xl border border-[#D4AF37]/20 [transform:rotateX(0deg)] [backface-visibility:hidden] flex items-center justify-center p-6">
+                              <div className="border border-[#D4AF37]/15 m-2 inset-0 absolute rounded-xl pointer-events-none"></div>
+                            </div>
+                          </div>
+
+                          <div className="absolute top-4 left-4 right-4 h-64 rounded-xl bg-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(2px)] z-15">
+                            <div className="absolute inset-0 bg-[#4A1525]/5 rounded-xl"></div>
+                          </div>
+
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                            className="absolute top-4 left-4 right-4 h-64 rounded-xl overflow-hidden transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(35px)_translateY(-40px)] z-25"
+                          >
+                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl p-[2px] bg-black overflow-hidden z-0">
+                              <div className="absolute inset-[-200%] bg-[conic-gradient(from_0deg,#ff0000,#ff7700,#ffff00,#00ff00,#00ffff,#0000ff,#ff00ff,#ff0000)] animate-[spin_4s_linear_infinite]" />
+                            </div>
+
+                            <div className="absolute inset-[2px] bg-neutral-100 rounded-xl overflow-hidden z-10">
+                              <img 
+                                src={p.images[0]} 
+                                alt={p.name} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 rounded-xl" 
+                              />
+                              {p.stock <= 3 && (
+                                <div className="absolute bottom-3 left-3 bg-[#4A1525] text-white text-[8px] font-mono tracking-widest px-2.5 py-1 uppercase rounded-md font-bold shadow-md">
+                                  ONLY {p.stock} ATELIER PIECES LEFT
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="absolute bottom-4 left-4 right-4 h-32 bg-neutral-50 rounded-xl border border-neutral-100 transition-all duration-700 ease-out origin-bottom group-hover:[transform:rotateX(90deg)_translateZ(4px)] z-15"></div>
+
+                          <div className="absolute bottom-4 left-4 right-4 p-5 bg-white border border-neutral-100 rounded-xl shadow-sm transition-all duration-700 ease-out origin-bottom [transform-style:preserve-3d] group-hover:[transform:rotateY(10deg)_rotateX(-60deg)_translateZ(65px)_translateY(-15px)] group-hover:bg-[#FAF5EF] group-hover:border-[#D4AF37]/35 group-hover:shadow-xl z-30">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <span className="text-[9px] uppercase font-bold tracking-widest text-[#B76E79] font-mono">{p.category}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-500">
+                                  <Star size={11} className="fill-[#D4AF37] text-[#D4AF37]" />
+                                  <span className={`text-[10px] font-mono ${theme.text} font-semibold`}>{p.rating}</span>
+                                </div>
+                              </div>
+                              
+                              <h4 
+                                onClick={(e) => { e.stopPropagation(); handleOpenProductDetailsPage(p); }}
+                                className={`font-serif italic text-base font-bold ${theme.text} cursor-pointer hover:text-[#D4AF37] transition-all truncate`}
+                              >
+                                {p.name}
+                              </h4>
+
+                              {p.designerName && (
+                                <p className="text-[11px] text-[#8E7868] font-serif italic">Curated by {p.designerName}</p>
+                              )}
+
+                              <div className="flex justify-between items-center pt-3 border-t border-neutral-100">
+                                <p className={`text-sm font-bold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAddToCart(p, p.sizes?.[0] || 'M'); }}
+                                  className="text-[10px] uppercase font-bold text-[#D4AF37] hover:text-[#B76E79] transition-all flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>Enlist Bag</span>
+                                  <ArrowRight size={11} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <motion.button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleWishlist(p.id); }}
+                          className="absolute top-8 right-8 z-40 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
+                          whileHover={{ scale: 1.15 }}
+                          whileTap={{ scale: 0.85 }}
+                          animate={wishlist.includes(p.id) ? { scale: [1, 1.45, 0.9, 1.25, 0.95, 1] } : { scale: 1 }}
+                        >
+                          <Heart size={13} className={wishlist.includes(p.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
+                        </motion.button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
 
             {/* PRIVILEGE WARDROBE REDUCTIONS OFFERS */}
             <section className="max-w-7xl mx-auto px-6 lg:px-12 py-10 border-t border-[#D4AF37]/15">
@@ -1991,197 +2431,16 @@ export default function App() {
 
         {/* 2. COLLECTIONS GRIDS */}
         {activeTab === 'collections' && (
-          <motion.div
-            key="collections"
-            initial={{ opacity: 0, y: 15, scale: 0.995 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -15, scale: 0.995 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-7xl mx-auto px-6 lg:px-12 py-10 lg:py-16"
-          >
-            
-            {/* Search + Category Controls */}
-            <div className={`border-b ${theme.borderColor} pb-8 mb-12 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6`}>
-              <div>
-                <span className="text-[10px] uppercase tracking-[0.3em] text-[#B76E79] font-black block mb-2">ANVAA MAISON CATALOG</span>
-                <h1 className={`text-4xl lg:text-5xl font-serif italic ${theme.text}`}>
-                  The Premium Collections
-                </h1>
-              </div>
-
-              {/* Dynamic search bar */}
-              <div className="w-full lg:w-96 relative">
-                <input
-                  type="text"
-                  placeholder="Inquire after specific fabrics or style names..."
-                  className={`w-full bg-white border ${theme.borderColor} pr-10 focus:border-[#D4AF37] px-4 py-3 text-xs outline-none transition-all placeholder:text-neutral-400 font-light`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <Search size={14} className="absolute right-3.5 top-3.5 text-neutral-400" />
-              </div>
-            </div>
-
-            {/* Filter buttons with beautiful color themes */}
-            <div className="flex flex-wrap gap-2 md:gap-3 mb-10 border-b border-neutral-100 pb-5">
-              {[
-                { tag: 'All', label: 'All Capsule Collections' },
-                { tag: 'Wedding Collection', label: 'Wedding Collection' },
-                { tag: 'Office Wear', label: 'Office Wear' },
-                { tag: 'Casual Wear', label: 'Casual Wear' },
-                { tag: 'Designer Collections', label: 'Designer Collections' },
-                { tag: 'Premium Limited Editions', label: 'Premium Limited Editions' }
-              ].map((item) => (
-                <button
-                  key={item.tag}
-                  onClick={() => setFilterCategory(item.tag)}
-                  className={`cursor-pointer px-4 lg:px-5 py-2.5 rounded-full text-[10px] lg:text-xs uppercase tracking-widest font-bold border transition-all duration-300 ${
-                    filterCategory === item.tag 
-                      ? `${theme.buttonPrimary} shadow-md` 
-                      : `bg-white ${theme.text} border-neutral-200 hover:border-[#D4AF37]`
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Main grid */}
-            {isProductsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-                {[1, 2, 3, 4, 5, 6].map((idx) => (
-                  <div 
-                    key={`skeleton-prod-${idx}`} 
-                    className={`${theme.cardBg} rounded-xl border ${theme.borderColor} overflow-hidden relative shadow-sm flex flex-col justify-between`}
-                  >
-                    <div className="luxury-shimmer-bg h-[450px] relative w-full overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent"></div>
-                    </div>
-                    <div className="p-6 space-y-4 flex-grow flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center text-[10px]">
-                          <div className="luxury-shimmer-bg h-3 w-1/4 rounded"></div>
-                          <div className="luxury-shimmer-bg h-3 w-1/5 rounded"></div>
-                        </div>
-                        <div className="luxury-shimmer-bg h-6 w-3/4 rounded-md"></div>
-                        <div className="luxury-shimmer-bg h-3 w-1/2 rounded"></div>
-                        <div className="space-y-1.5 pt-2">
-                          <div className="luxury-shimmer-bg h-2.5 w-full rounded"></div>
-                          <div className="luxury-shimmer-bg h-2.5 w-5/6 rounded"></div>
-                          <div className="luxury-shimmer-bg h-2.5 w-4/5 rounded"></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center pt-4 border-t border-neutral-100/50 mt-4">
-                        <div className="luxury-shimmer-bg h-5 w-1/4 rounded"></div>
-                        <div className="luxury-shimmer-bg h-8 w-1/3 rounded-lg"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="italic text-neutral-400 font-serif">No styles match your search criteria. Please review tags or enter another drape query.</p>
-              </div>
-            ) : (
-              <motion.div 
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10"
-                initial="hidden"
-                whileInView="show"
-                viewport={{ once: true, margin: "-60px" }}
-                variants={{
-                  hidden: {},
-                  show: {
-                    transition: {
-                      staggerChildren: 0.12
-                    }
-                  }
-                }}
-              >
-                {filteredProducts.map((p, idx) => (
-                  <motion.div 
-                    key={p.id}
-                    variants={{
-                      hidden: { opacity: 0, y: 30, scale: 0.98 },
-                      show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
-                    }}
-                    className={`group ${theme.cardBg} rounded-xl border ${theme.borderColor} overflow-hidden relative shadow-sm hover:shadow-xl transition-all duration-[500ms] flex flex-col justify-between`}
-                  >
-                    
-                    {/* wishlist */}
-                    <motion.button 
-                      onClick={() => handleToggleWishlist(p.id)}
-                      className="absolute top-4 right-4 z-20 bg-white/80 hover:bg-white backdrop-blur-md p-2 rounded-full cursor-pointer border shadow-sm text-neutral-400 hover:text-[#B76E79]"
-                      whileHover={{ scale: 1.15 }}
-                      whileTap={{ scale: 0.85 }}
-                      animate={wishlist.includes(p.id) ? {
-                        scale: [1, 1.45, 0.9, 1.25, 0.95, 1],
-                      } : { scale: 1 }}
-                      transition={{ duration: 0.55, ease: "easeInOut" }}
-                    >
-                      <Heart size={14} className={wishlist.includes(p.id) ? "fill-[#B76E79] text-[#B76E79]" : ""} />
-                    </motion.button>
-
-                    <div 
-                      onClick={() => handleOpenProductDetails(p)}
-                      className="cursor-pointer overflow-hidden bg-neutral-100 h-[450px] relative"
-                    >
-                      <img 
-                        src={p.images[0]} 
-                        alt={p.name} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
-                      />
-                      <div className="absolute inset-0 bg-[#4A1525]/10 group-hover:bg-transparent transition-colors"></div>
-                      
-                      {p.category === 'Premium Limited Editions' && (
-                        <div className="absolute top-4 left-4 bg-gradient-to-r from-[#BF953F] to-[#AA771C] text-[#4A1525] text-[8px] font-black tracking-widest px-2.5 py-1 uppercase rounded shadow">
-                          LIMITED HERITAGE SERIAL
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-6 space-y-2 flex-grow flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start mb-1 text-[10px] font-mono font-bold">
-                          <span className="text-[#B76E79] uppercase">{p.category}</span>
-                          <span className="text-neutral-400">RATING: {p.rating} / 5</span>
-                        </div>
-                        
-                        <h3 
-                          onClick={() => handleOpenProductDetails(p)}
-                          className={`font-serif italic text-lg font-bold ${theme.text} cursor-pointer hover:${theme.accentText} transition-all`}
-                        >
-                          {p.name}
-                        </h3>
-
-                        {p.designerName && (
-                          <p onClick={() => setActiveTab('designers')} className={`text-xs ${theme.accentText} font-serif italic mt-0.5 hover:underline cursor-pointer`}>
-                            by designer {p.designerName}
-                          </p>
-                        )}
-
-                        <p className={`text-xs ${theme.textMuted} font-light leading-relaxed mt-2 line-clamp-3`}>
-                          {p.description}
-                        </p>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-4 border-t border-neutral-100 mt-4">
-                        <p className={`text-base font-extrabold ${theme.text} font-mono`}>₹{p.price.toLocaleString('en-IN')}</p>
-                        <button
-                          onClick={() => handleAddToCart(p, p.sizes?.[0] || 'M')}
-                          className={`${theme.buttonPrimary} text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded cursor-pointer transition-all duration-300`}
-                        >
-                          Enlist Bag
-                        </button>
-                      </div>
-                    </div>
-
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-
-          </motion.div>
+          <CollectionsCatalog
+            products={filteredProducts}
+            wishlist={wishlist}
+            handleToggleWishlist={handleToggleWishlist}
+            handleAddToCart={handleAddToCart}
+            theme={theme}
+            setActiveTab={setActiveTab}
+            filterCategory={filterCategory}
+            setFilterCategory={setFilterCategory}
+          />
         )}
 
         {/* 3. DESIGNER MARKETPLACE TAB CONTAINER */}

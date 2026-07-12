@@ -8,6 +8,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { User } from "./models/user.model";
 import { Order } from "./models/order.model";
+import { Designer } from "./models/designer.model";
 
 dotenv.config();
 
@@ -16,10 +17,12 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 const DB_FILE = path.join(process.cwd(), "database.json");
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/anvaa";
+mongoose.set('bufferCommands', false);
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log("Connected to MongoDB Atlas successfully!");
     seedMongoVIPUser();
+    seedMongoDesigners();
   })
   .catch((err) => console.error("MongoDB Atlas connection error:", err));
 
@@ -59,6 +62,39 @@ async function seedMongoVIPUser() {
     }
   } catch (err) {
     console.error("Error seeding VIP User in MongoDB:", err);
+  }
+}
+
+async function seedMongoDesigners() {
+  try {
+    const db = getDB();
+    if (!db || !db.designers) return;
+    for (const d of db.designers) {
+      const existing = await Designer.findOne({ id: d.id });
+      if (!existing) {
+        const mDesigner = new Designer({
+          id: d.id,
+          email: d.email || `${d.id}@anvaa.com`,
+          password: d.password || d.id,
+          name: d.name,
+          city: d.city,
+          specialty: d.specialty,
+          avatar: d.avatar || "",
+          coverImage: d.coverImage || "",
+          bio: d.bio || "",
+          achievements: d.achievements || [],
+          history: d.history || [],
+          portfolio: d.portfolio || [],
+          rating: Number(d.rating) || 5.0,
+          reviewsCount: Number(d.reviewsCount) || 0,
+          consultationFee: Number(d.consultationFee) || 3000
+        });
+        await mDesigner.save();
+        console.log(`Seeded designer ${d.name} into MongoDB Atlas.`);
+      }
+    }
+  } catch (err) {
+    console.error("Error seeding MongoDB designers:", err);
   }
 }
 
@@ -513,6 +549,46 @@ function saveDB(data: any) {
   }
 }
 
+async function findUserHelper(userId: string) {
+  if (mongoose.connection.readyState === 1) {
+    try {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        const user = await User.findById(userId);
+        if (user) return user;
+      }
+      const userByEmail = await User.findOne({ email: userId.toLowerCase() });
+      if (userByEmail) return userByEmail;
+    } catch (e) {
+      console.error("Mongo findUser helper failed, falling back to local DB", e);
+    }
+  }
+  // Local fallback
+  const db = getDB();
+  if (db && db.users) {
+    const user = db.users.find((u: any) => u._id === userId || u.id === userId || (u.email && u.email.toLowerCase() === userId.toLowerCase()));
+    return user || null;
+  }
+  return null;
+}
+
+async function saveUserHelper(user: any) {
+  if (user && typeof user.save === "function") {
+    return await user.save();
+  } else {
+    // Save to local database.json
+    const db = getDB();
+    if (db && db.users) {
+      const idx = db.users.findIndex((u: any) => (u._id && u._id === user._id) || (u.id && u.id === user.id) || (u.email && u.email.toLowerCase() === user.email.toLowerCase()));
+      if (idx !== -1) {
+        db.users[idx] = user;
+      } else {
+        db.users.push(user);
+      }
+      saveDB(db);
+    }
+  }
+}
+
 // REST end-points
 app.get("/api/products", (req, res) => {
   const db = getDB();
@@ -533,7 +609,15 @@ app.get("/api/products/:id", (req, res) => {
 
 
 
-app.get("/api/designers", (req, res) => {
+app.get("/api/designers", async (req, res) => {
+  if (mongoose.connection.readyState === 1) {
+    try {
+      const mDesigners = await Designer.find({});
+      return res.json(mDesigners);
+    } catch (e) {
+      console.error("Failed to query MongoDB designers", e);
+    }
+  }
   const db = getDB();
   res.json(db ? db.designers : []);
 });
@@ -578,6 +662,15 @@ app.get("/api/chats/:customerId", (req, res) => {
   res.json(userChats);
 });
 
+// Get chats for a specific designer
+app.get("/api/chats/designer/:designerId", (req, res) => {
+  const db = getDB();
+  if (!db) return res.status(500).json({ error: "DB error" });
+  const designerId = req.params.designerId;
+  const designerChats = db.chats ? db.chats.filter((c: any) => c.designerId === designerId) : [];
+  res.json(designerChats);
+});
+
 // Send Chat message and use Gemini for AI automated Stylist replies!
 app.post("/api/chats/message", async (req, res) => {
   const db = getDB();
@@ -611,65 +704,7 @@ app.post("/api/chats/message", async (req, res) => {
   thread.lastUpdated = new Date().toISOString();
   saveDB(db);
 
-  // Auto response logic using Gemini API or dynamic elegant responses
-  const gemini = getGeminiClient();
-  const designerObj = db.designers.find((d: any) => d.id === designerId);
-  const designerBio = designerObj ? designerObj.bio : `${designerName} is an elite premium haute couture designer at ANVAA.`;
-  const designerStyle = designerObj ? designerObj.specialty : "Luxury Premium Attire";
 
-  if (sender === "customer") {
-    let responseText = "";
-
-    if (gemini) {
-      try {
-        const systemPrompt = `
-You are the elite fashion designer "${designerName}" at the luxury women-fashion e-commerce brand "ANVAA".
-Your bio: ${designerBio}.
-Your structural expertise: ${designerStyle}.
-You are interacting with a highly valued customer named "${customerName}" who is exploring your custom-fit designer collections.
-Respond elegantly in a super-premium, supportive, professional, warm and respectful tone. Inject Indian fashion heritage terminology when appropriate (like silhouettes, drapes, zardozi embroidery, weaves, custom curation).
-Ensure the reply feels personal, premium, inspirational, and modern Gen Z compatible.
-Keep the reply brief (around 2-4 sentences max), guiding them to either checkout their premium collections, make a customized fit consultation request, or answer their specific fit issue.
-No markdown or emojis that feel cheap. Use only premium typography phrasing.
-`;
-
-        const responseObj = await gemini.models.generateContent({
-          model: "gemini-3.5-flash",
-          contents: content,
-          config: {
-            systemInstruction: systemPrompt,
-            temperature: 0.7,
-          }
-        });
-
-        responseText = responseObj.text || "";
-      } catch (gemError) {
-        console.error("Gemini stylist generation failed:", gemError);
-      }
-    }
-
-    // Default high-fashion fallback response if Gemini is not initialized
-    if (!responseText) {
-      const fallbacks = [
-        `Dear ${customerName}, I adore your taste! The texture of our custom weaves has been refined specifically to match such elegant standards. Shall we schedule a virtual design fit-test?`,
-        `Ah, ${customerName}. For this specific style, I definitely recommend pairing it with a customized organza drape. It maintains structure while flowing beautifully.`,
-        `Greetings ${customerName}. An exquisite query. Every thread in this premium design is selected meticulously over 14 craftsmanship days. We would love to alter the length exactly to your waistline specifications.`
-      ];
-      responseText = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-    }
-
-    // Create a delayed response from the designer
-    const designerMessage = {
-      id: "msg_" + (Date.now() + 10),
-      sender: "designer",
-      content: responseText.trim(),
-      timestamp: new Date().toISOString()
-    };
-
-    thread.messages.push(designerMessage);
-    thread.lastUpdated = new Date().toISOString();
-    saveDB(db);
-  }
 
   res.json(thread);
 });
@@ -735,14 +770,13 @@ app.post("/api/consultations", (req, res) => {
   res.json({ success: true, consultation: newConsultation });
 });
 
-// Wishlists
 app.get("/api/wishlist", async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.json([]);
     }
-    const user = await User.findById(userId);
+    const user = await findUserHelper(userId as string);
     if (!user) {
       return res.json([]);
     }
@@ -759,7 +793,7 @@ app.post("/api/wishlist/toggle", async (req, res) => {
     if (!userId) {
       return res.status(400).json({ error: "User ID is required." });
     }
-    const user = await User.findById(userId);
+    const user = await findUserHelper(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found." });
     }
@@ -771,7 +805,7 @@ app.post("/api/wishlist/toggle", async (req, res) => {
     } else {
       user.wishlist.push(productId);
     }
-    await user.save();
+    await saveUserHelper(user);
 
     res.json({ success: true, wishlist: user.wishlist });
   } catch (err) {
@@ -780,7 +814,6 @@ app.post("/api/wishlist/toggle", async (req, res) => {
   }
 });
 
-// Authentication (Stateful MongoDB database integration)
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { email, name, phone, password } = req.body;
@@ -788,7 +821,8 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "Missing required registration parameters." });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    const lowerEmail = email.toLowerCase();
+    const existingUser = await findUserHelper(lowerEmail);
     if (existingUser) {
       return res.status(400).json({ error: "Email is already registered. Please login." });
     }
@@ -797,21 +831,36 @@ app.post("/api/auth/register", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = new User({
-      email: email.toLowerCase(),
+    const userData = {
+      email: lowerEmail,
       password: hashedPassword,
       name,
       phone: phone || "",
       avatar: "",
       role: "customer",
-      savedAddresses: []
-    });
+      savedAddresses: [],
+      wishlist: []
+    };
 
-    await newUser.save();
+    let userObj: any;
+    if (mongoose.connection.readyState === 1) {
+      const newUser = new User(userData);
+      await newUser.save();
+      userObj = newUser.toObject();
+    } else {
+      const db = getDB();
+      const newUser = {
+        _id: "user_" + Date.now(),
+        id: "user_" + Date.now(),
+        ...userData,
+        createdAt: new Date().toISOString()
+      };
+      db.users.push(newUser);
+      saveDB(db);
+      userObj = { ...newUser };
+    }
 
-    const userObj = newUser.toObject();
     delete userObj.password;
-
     res.json({ success: true, user: userObj });
   } catch (err: any) {
     console.error("Register error:", err);
@@ -826,8 +875,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Email and password are required to access your VIP Atelier account." });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
-
+    const user = await findUserHelper(email.toLowerCase());
     if (!user) {
       return res.status(400).json({ error: "No account exists with this email in the ANVAA registry. Please sign up first." });
     }
@@ -838,7 +886,7 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Incorrect security password credentials. Please verify." });
     }
 
-    const userObj = user.toObject();
+    const userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
     delete userObj.password;
 
     res.json({ success: true, user: userObj });
@@ -847,6 +895,217 @@ app.post("/api/auth/login", async (req, res) => {
     res.status(500).json({ error: "Authentication failed. Try again." });
   }
 });
+
+app.post("/api/auth/designer/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required." });
+    }
+
+    const lowerEmail = email.toLowerCase();
+    let designer: any;
+
+    if (mongoose.connection.readyState === 1) {
+      designer = await Designer.findOne({ email: lowerEmail });
+    } else {
+      const db = getDB();
+      if (!db) return res.status(500).json({ error: "DB error" });
+      designer = db.designers.find((d: any) => d.email?.toLowerCase() === lowerEmail);
+    }
+
+    if (!designer) {
+      return res.status(400).json({ error: "No designer account found with this email in the ANVAA registry." });
+    }
+
+    // Verify password
+    let isMatch = false;
+    const designerPassword = designer.password;
+    if (designerPassword.startsWith("$2a$") || designerPassword.startsWith("$2b$")) {
+      isMatch = await bcrypt.compare(password, designerPassword);
+    } else {
+      isMatch = password === designerPassword;
+      if (isMatch) {
+        const salt = await bcrypt.genSalt(10);
+        const hashed = await bcrypt.hash(password, salt);
+        if (mongoose.connection.readyState === 1) {
+          designer.password = hashed;
+          await designer.save();
+        } else {
+          const db = getDB();
+          const dbDesigner = db.designers.find((d: any) => d.id === designer.id);
+          if (dbDesigner) {
+            dbDesigner.password = hashed;
+            saveDB(db);
+          }
+        }
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(400).json({ error: "Incorrect password credentials. Please verify." });
+    }
+
+    const designerObj = typeof designer.toObject === "function" ? designer.toObject() : { ...designer };
+    delete designerObj.password;
+
+    res.json({ success: true, designer: designerObj });
+  } catch (err: any) {
+    console.error("Designer login error:", err);
+    res.status(500).json({ error: "Authentication failed. Try again." });
+  }
+});
+
+app.post("/api/auth/designer/register", async (req, res) => {
+  try {
+    const { email, name, password, specialty, city } = req.body;
+    if (!email || !name || !password || !specialty || !city) {
+      return res.status(400).json({ error: "Missing required registration parameters." });
+    }
+
+    const lowerEmail = email.toLowerCase();
+
+    // Check if exists
+    let existingDesigner: any;
+    if (mongoose.connection.readyState === 1) {
+      existingDesigner = await Designer.findOne({ email: lowerEmail });
+    } else {
+      const db = getDB();
+      if (!db) return res.status(500).json({ error: "DB error" });
+      existingDesigner = db.designers.find((d: any) => d.email?.toLowerCase() === lowerEmail);
+    }
+
+    if (existingDesigner) {
+      return res.status(400).json({ error: "Email is already registered. Please login." });
+    }
+
+    // Hash password with bcryptjs
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const designerId = "designer_" + Date.now();
+    const designerData = {
+      id: designerId,
+      email: lowerEmail,
+      password: hashedPassword,
+      name,
+      specialty,
+      city,
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=400", // Default elegant avatar
+      coverImage: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800", // Default elegant cover
+      bio: `${name} is an elite premium designer specializing in ${specialty} based in ${city}.`,
+      achievements: [
+        "ANVAA Couture Elite Artisan Empaneled",
+        "Showcased at Atelier Studio Opening 2026"
+      ],
+      history: [
+        {
+          year: new Date().getFullYear().toString(),
+          event: "Joined the ANVAA Maison luxury collection."
+        }
+      ],
+      rating: 5.0,
+      reviewsCount: 0,
+      consultationFee: 3000
+    };
+
+    let designerObj: any;
+    if (mongoose.connection.readyState === 1) {
+      const mDesigner = new Designer(designerData);
+      await mDesigner.save();
+      designerObj = mDesigner.toObject();
+    } else {
+      const db = getDB();
+      db.designers.push({ ...designerData });
+      saveDB(db);
+      designerObj = { ...designerData };
+    }
+
+    // Also sync to JSON db for complete compatibility
+    const db = getDB();
+    if (db) {
+      const alreadyInJson = db.designers.find((d: any) => d.email?.toLowerCase() === lowerEmail);
+      if (!alreadyInJson) {
+        db.designers.push({ ...designerData });
+        saveDB(db);
+      }
+    }
+
+    delete designerObj.password;
+    res.json({ success: true, designer: designerObj });
+  } catch (err: any) {
+    console.error("Designer register error:", err);
+    res.status(500).json({ error: "Registration process failed. Please try again." });
+  }
+});
+
+app.post("/api/designers/update", async (req, res) => {
+  try {
+    const { id, name, city, specialty, bio, avatar, coverImage, achievements, portfolio, consultationFee } = req.body;
+    if (!id) {
+      return res.status(400).json({ error: "Designer ID is required to make profile updates." });
+    }
+
+    let updatedDesigner: any;
+
+    if (mongoose.connection.readyState === 1) {
+      // Mongoose DB Update
+      const designer = await Designer.findOne({ id });
+      if (!designer) {
+        return res.status(404).json({ error: "Designer account not found in MongoDB." });
+      }
+
+      if (name) designer.name = name;
+      if (city) designer.city = city;
+      if (specialty) designer.specialty = specialty;
+      if (bio !== undefined) designer.bio = bio;
+      if (avatar !== undefined) designer.avatar = avatar;
+      if (coverImage !== undefined) designer.coverImage = coverImage;
+      if (achievements !== undefined) designer.achievements = achievements;
+      if (portfolio !== undefined) designer.portfolio = portfolio;
+      if (consultationFee !== undefined) designer.consultationFee = Number(consultationFee);
+
+      await designer.save();
+      updatedDesigner = designer.toObject();
+    } else {
+      updatedDesigner = null;
+    }
+
+    // Always keep JSON Database in sync as a fallback
+    const db = getDB();
+    if (db) {
+      const idx = db.designers.findIndex((d: any) => d.id === id);
+      if (idx !== -1) {
+        const d = db.designers[idx];
+        if (name) d.name = name;
+        if (city) d.city = city;
+        if (specialty) d.specialty = specialty;
+        if (bio !== undefined) d.bio = bio;
+        if (avatar !== undefined) d.avatar = avatar;
+        if (coverImage !== undefined) d.coverImage = coverImage;
+        if (achievements !== undefined) d.achievements = achievements;
+        if (portfolio !== undefined) d.portfolio = portfolio;
+        if (consultationFee !== undefined) d.consultationFee = Number(consultationFee);
+        
+        saveDB(db);
+        if (!updatedDesigner) {
+          updatedDesigner = { ...d };
+        }
+      }
+    }
+
+    if (!updatedDesigner) {
+      return res.status(404).json({ error: "Designer account not found." });
+    }
+
+    delete updatedDesigner.password;
+    res.json({ success: true, designer: updatedDesigner });
+  } catch (err: any) {
+    console.error("Designer profile update failed:", err);
+    res.status(500).json({ error: "Profile update failed. Please try again." });
+  }
+});
+
 app.post("/api/auth/google", async (req, res) => {
   try {
     const { credential } = req.body;
@@ -866,35 +1125,51 @@ app.post("/api/auth/google", async (req, res) => {
       return res.status(400).json({ error: "Google account does not provide an email address." });
     }
 
-    // Check if user exists in MongoDB
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await findUserHelper(email.toLowerCase());
+    let userObj: any;
 
     if (!user) {
       // Create new user for Google Sign-in with a secure dummy password
       const dummyPassword = await bcrypt.hash("google-oauth-user-" + Date.now(), 10);
-      user = new User({
+      const userData = {
         email: email.toLowerCase(),
         password: dummyPassword,
         name: name || "Google User",
         phone: "",
         avatar: picture || "",
         role: "customer",
-        savedAddresses: []
-      });
-      await user.save();
+        savedAddresses: [],
+        wishlist: []
+      };
+
+      if (mongoose.connection.readyState === 1) {
+        const newUser = new User(userData);
+        await newUser.save();
+        userObj = newUser.toObject();
+      } else {
+        const db = getDB();
+        const newUser = {
+          _id: "user_" + Date.now(),
+          id: "user_" + Date.now(),
+          ...userData,
+          createdAt: new Date().toISOString()
+        };
+        db.users.push(newUser);
+        saveDB(db);
+        userObj = { ...newUser };
+      }
       console.log(`New user registered via Google Sign-In: ${email}`);
     } else {
       // User exists, update avatar if empty
       if (!user.avatar && picture) {
         user.avatar = picture;
-        await user.save();
+        await saveUserHelper(user);
       }
+      userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
       console.log(`Existing user logged in via Google Sign-In: ${email}`);
     }
 
-    const userObj = user.toObject();
     delete userObj.password;
-
     res.json({ success: true, user: userObj });
   } catch (err: any) {
     console.error("Google authentication error:", err);
@@ -909,7 +1184,7 @@ app.post("/api/auth/update-profile", async (req, res) => {
       return res.status(400).json({ error: "User ID is required." });
     }
 
-    const user = await User.findById(userId);
+    const user = await findUserHelper(userId);
     if (!user) {
       return res.status(404).json({ error: "VIP user session not found." });
     }
@@ -934,7 +1209,7 @@ app.post("/api/auth/update-profile", async (req, res) => {
       };
 
       if (!user.savedAddresses || user.savedAddresses.length === 0) {
-        user.savedAddresses.push(parsedAddress as any);
+        user.savedAddresses = [parsedAddress];
       } else {
         const existingAddr = user.savedAddresses[0];
         existingAddr.name = parsedAddress.name;
@@ -946,9 +1221,9 @@ app.post("/api/auth/update-profile", async (req, res) => {
       }
     }
 
-    await user.save();
+    await saveUserHelper(user);
 
-    const userObj = user.toObject();
+    const userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
     delete userObj.password;
 
     res.json({ success: true, user: userObj });
@@ -958,15 +1233,11 @@ app.post("/api/auth/update-profile", async (req, res) => {
   }
 });
 
+
 app.post("/api/auth/save-address", async (req, res) => {
   try {
     const { userId, address } = req.body;
-    
-    // Find user either by Mongo _id or standard id
-    let user = await User.findById(userId);
-    if (!user) {
-      user = await User.findOne({ email: userId });
-    }
+    const user = await findUserHelper(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -975,7 +1246,8 @@ app.post("/api/auth/save-address", async (req, res) => {
       address.id = "addr_" + Date.now();
     }
 
-    const addrIdx = user.savedAddresses.findIndex((a: any) => a.id === address.id || a._id?.toString() === address.id);
+    if (!user.savedAddresses) user.savedAddresses = [];
+    const addrIdx = user.savedAddresses.findIndex((a: any) => a.id === address.id || (a._id && a._id.toString() === address.id));
     if (addrIdx !== -1) {
       const existingAddr = user.savedAddresses[addrIdx];
       existingAddr.name = address.name;
@@ -988,9 +1260,9 @@ app.post("/api/auth/save-address", async (req, res) => {
       user.savedAddresses.push(address as any);
     }
     
-    await user.save();
+    await saveUserHelper(user);
     
-    const userObj = user.toObject();
+    const userObj = typeof user.toObject === "function" ? user.toObject() : { ...user };
     delete userObj.password;
     res.json({ success: true, address, user: userObj });
   } catch (err: any) {
@@ -1002,7 +1274,25 @@ app.post("/api/auth/save-address", async (req, res) => {
 // Orders & Payments
 app.get("/api/orders/user/:userId", async (req, res) => {
   try {
-    const userOrders = await Order.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    const { userId } = req.params;
+    if (!userId || userId === "undefined") {
+      return res.json([]);
+    }
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        if (mongoose.Types.ObjectId.isValid(userId)) {
+          const userOrders = await Order.find({ userId }).sort({ createdAt: -1 });
+          return res.json(userOrders);
+        }
+      } catch (e) {
+        console.error("Mongo fetch user orders error, falling back to local DB", e);
+      }
+    }
+    
+    // Local fallback
+    const db = getDB();
+    const userOrders = db.orders.filter((o: any) => o.userId === userId).sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     res.json(userOrders);
   } catch (err: any) {
     console.error("Fetch user orders error:", err);
@@ -1010,15 +1300,13 @@ app.get("/api/orders/user/:userId", async (req, res) => {
   }
 });
 
-
-
 app.post("/api/orders", async (req, res) => {
   try {
     const { userId, items, subtotal, discount, shipping, total, address, paymentMethod } = req.body;
 
     const orderId = "ANVAA-" + Math.floor(100000 + Math.random() * 900000);
 
-    const newOrder = new Order({
+    const orderData = {
       id: orderId,
       userId,
       items,
@@ -1036,9 +1324,24 @@ app.post("/api/orders", async (req, res) => {
         { status: "Dispatched", date: "--", description: "Placed in luxury premium boxes with custom notes.", done: false },
         { status: "Delivered", date: "--", description: "Pristine physical handover complete.", done: false }
       ]
-    });
+    };
 
-    await newOrder.save();
+    let savedOrder: any;
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(userId)) {
+      const newOrder = new Order(orderData);
+      await newOrder.save();
+      savedOrder = newOrder.toObject();
+    } else {
+      const db = getDB();
+      const newOrder = {
+        _id: "order_" + Date.now(),
+        ...orderData,
+        createdAt: new Date().toISOString()
+      };
+      db.orders.push(newOrder);
+      saveDB(db);
+      savedOrder = { ...newOrder };
+    }
 
     // Decrement stock levels
     const db = getDB();
@@ -1052,7 +1355,7 @@ app.post("/api/orders", async (req, res) => {
       saveDB(db);
     }
 
-    res.json({ success: true, order: newOrder });
+    res.json({ success: true, order: savedOrder });
   } catch (err: any) {
     console.error("Create order error:", err);
     res.status(500).json({ error: "Failed to place order." });
@@ -1066,6 +1369,14 @@ async function start() {
   if (isBackendOnly) {
     console.log("Starting backend in standalone API mode (--backend-only).");
   } else {
+    // Dev-mode redirect helper for designer portal
+    app.get("/designer", (req, res, next) => {
+      if (process.env.NODE_ENV !== "production") {
+        return res.redirect("/designer.html");
+      }
+      next();
+    });
+
     if (process.env.NODE_ENV !== "production") {
       const vite = await createViteServer({
         server: { middlewareMode: true },
@@ -1076,14 +1387,28 @@ async function start() {
     } else {
       const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
+      
+      // Serve the designer portal for /designer or /designer.html
+      app.get(["/designer", "/designer.html"], (req, res) => {
+        res.sendFile(path.join(distPath, "designer.html"));
+      });
+
       app.get("*", (req, res) => {
         res.sendFile(path.join(distPath, "index.html"));
       });
     }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`ANVAA backend luxury server is running at http://127.0.0.1:${PORT}`);
+  });
+
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`\n[Error] Port ${PORT} is already in use by another process.`);
+      console.error(`Please run 'taskkill /F /PID <pid>' to free port ${PORT}, or set a different port using the PORT environment variable (e.g., PORT=3002 npm run dev:backend).\n`);
+      process.exit(1);
+    }
   });
 }
 

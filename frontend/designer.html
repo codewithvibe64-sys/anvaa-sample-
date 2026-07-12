@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ANVAA Atelier | Designer Workspace Dashboard</title>
+    <!-- Silence third-party Chrome extension message channel warnings -->
+    <script>
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason) {
+          const reasonStr = (event.reason.stack || event.reason.message || event.reason).toString();
+          if (
+            reasonStr.includes('message channel') || 
+            reasonStr.includes('messageChannel') || 
+            reasonStr.includes('asynchronous response') || 
+            reasonStr.includes('returning true') ||
+            reasonStr.includes('chrome-extension')
+          ) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }
+      }, true);
+
+      window.addEventListener('error', function(event) {
+        const errorMsg = event.message || '';
+        const errorStack = event.error ? (event.error.stack || '') : '';
+        if (
+          errorMsg.includes('message channel') || 
+          errorMsg.includes('messageChannel') || 
+          errorMsg.includes('asynchronous response') || 
+          errorMsg.includes('returning true') ||
+          errorMsg.includes('chrome-extension') ||
+          errorStack.includes('chrome-extension')
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      }, true);
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/designer.tsx"></script>
+  </body>
+</html>
